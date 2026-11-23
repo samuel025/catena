@@ -1,0 +1,59 @@
+# Catena
+
+A cross-chain credit passport for the Reactive Omni Buildathon (Reactive Meets AI track).
+A reactive contract on Reactive Lasna watches loan events on Base Sepolia and Unichain Sepolia, scores each
+borrower with a small neural network that runs **inside** `react()`, and sets per-chain borrow quotas by callback.
+Test networks, fake money. Not production credit scoring.
+
+## How it works
+1. Pools on each chain emit `Borrowed`, `Repaid(late?)` and `Defaulted` events.
+2. `CatenaReactive` keeps one passport per wallet (six features), dedups events, and runs the MLP in fixed-point integer math.
+3. The score gives a tier, and the tier sets a total limit that is split into fixed per-chain quotas, pushed by callback.
+4. Hard rules sit outside the model: a default forces zero, cuts apply at once, raises climb one tier per period,
+   new wallets start at tier 0 with a small starter quota, and stale or replayed updates are ignored.
+5. When a tier changes the contract records the biggest helping and hurting inputs (model sensitivity, not the definitive cause).
+
+Fixed per-chain quotas bound total exposure by the total limit whatever the callback latency (`script/security_test.sh`).
+
+## Layout
+| Path | What |
+|---|---|
+| `src/CatenaPool.sol` | demo pool + callback receiver, same code on every chain; `collateralOnly` mode is the demo's "before" case |
+| `src/CatenaReactive.sol` | passport state, features, rules, reasons, callbacks |
+| `src/Mlp.sol` | GENERATED integer MLP (6 -> 8 ReLU -> 1), monotone by construction |
+| `model/train.py` | synthetic data, constrained training, quantization, export, evaluation |
+| `model/replay.py` | Python spec of the contract's state machine, used for whole-history parity tests |
+| `model/model_card.md` | data rules, metrics, baselines, limits (read this before trusting any number) |
+| `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow |
+| `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `check_funds.sh` |
+
+## Run
+```
+forge install foundry-rs/forge-std   # test library (reactive-lib-omni is a submodule: git submodule update --init)
+forge test                        # 20 tests
+python3 -m venv .venv && .venv/bin/pip install numpy
+.venv/bin/python model/train.py && .venv/bin/python model/replay.py   # regenerate model + test vectors
+cp .env.example .env              # PRIVATE_KEY (throwaway testnet key), RPCs
+script/deploy.sh                  # reactive first, then pools (callback sender is immutable)
+script/check_funds.sh             # reactive contract needs lREACT, each pool needs native gas
+script/demo.sh && script/demo_capital.sh && script/demo_wallets.sh && script/security_test.sh
+```
+Funding matters: each reactive transaction costs about 0.03 lREACT at 100 gwei and every pool event triggers one.
+A contract in debt silently stops receiving events. lREACT comes from the faucet contracts in the Reactive docs.
+
+## Measured (Lasna, Base Sepolia, Unichain Sepolia)
+- `react()` for a repay including two callbacks: 185k to 202k gas (cap 900k). One MLP forward pass: about 37k gas.
+- Origin event to destination callback: about 2 seconds (1 second timestamp resolution).
+- Model, held-out synthetic data: MLP 66.7% tier accuracy vs 65.9% for a fitted linear formula, so the
+  win over a plain formula is small. See `model/model_card.md`.
+
+## Chain facts (Reactive docs)
+Lasna chain ID 5318007, system contract `0x8888…8888`. Callback proxies: Base Sepolia `0x476F…0585`,
+Unichain Sepolia `0x775c…66C1`.
+
+## Limits
+Synthetic training data; address-based identity (a defaulter can open a new wallet, which starts at tier 0);
+one scripted demo, not a product. Reactscan/Sourcify verification was blocked by Sourcify failing to fetch solc 0.8.29.
+
+## Disclosure
+Developed with AI assistance (Claude Code).
