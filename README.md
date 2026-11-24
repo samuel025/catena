@@ -35,6 +35,7 @@ which this prototype leaves out.
 | `model/train.py` | synthetic data, constrained training, quantization, export, evaluation |
 | `model/replay.py` | Python spec of the contract's state machine, used for whole-history parity tests |
 | `model/model_card.md` | data rules, metrics, baselines, limits (read this before trusting any number) |
+| `model/evaluation.md` | extra checks: risky-borrower approvals, leave-one-population-out, transparent scorecard baseline (`model/evaluate.py`) |
 | `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow |
 | `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `latency.sh`, `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
 | `web/` | static page: look up any wallet and see tier, score, quotas on both chains, reasons and scorings, read live from the RPCs (no backend). `cd web && python3 -m http.server`, open `?w=<address>` |

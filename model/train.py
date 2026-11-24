@@ -24,7 +24,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 # ---------------------------------------------------------------- data generation
-def simulate(n, rng):
+def simulate(n, rng, comp_p=(0.25, 0.25, 0.5)):
     """Generate borrower profiles. Returns integer features (n,6) and true quality y in [0,1].
 
     Generation rules (published in the model card):
@@ -35,7 +35,7 @@ def simulate(n, rng):
       true quality y = clip(r*(0.85+0.15*a) - 0.25*d + N(0, 0.03), 0, 1)
     A default is NOT simulated: it is a hard rule outside the model.
     """
-    comp = rng.choice(3, size=n, p=[0.25, 0.25, 0.5])
+    comp = rng.choice(3, size=n, p=list(comp_p))
     r = np.where(comp == 0, rng.beta(8, 2, n), np.where(comp == 1, rng.beta(2, 6, n), rng.beta(3, 3, n)))
     k = rng.integers(0, 21, n)
     d = rng.beta(2, 3, n)
