@@ -13,7 +13,18 @@ Test networks, fake money. Not production credit scoring.
    new wallets start at tier 0 with a small starter quota, and stale or replayed updates are ignored.
 5. When a tier changes the contract records the biggest helping and hurting inputs (model sensitivity, not the definitive cause).
 
-Fixed per-chain quotas bound total exposure by the total limit whatever the callback latency (`script/security_test.sh`).
+What the security design guarantees, and what it does not:
+
+| Guarantee | Holds? |
+|---|---|
+| Concurrent draws on several chains cannot exceed the sum of the quotas currently installed (`script/security_test.sh`) | Yes, whatever the callback latency |
+| An older callback cannot overwrite a newer assessment (score version check in the pool) | Yes (`test_poolIgnoresStaleVersion`) |
+| A default flagged on a pool blocks borrowing on that pool immediately | Yes (`defaultFlagged`, no callback needed) |
+| A default on one chain blocks borrowing on the other chain immediately | **No.** The other pool keeps its old quota until the zero-quota callback arrives, a window of about 1 to 3 seconds measured on testnet. Exposure in that window is bounded by the old quota minus debt (`test_defaultBlocksLocallyAtOnceAndRemotelyAfterCallback`) |
+
+Quotas bound concurrent borrowing against the allocations installed at that moment. They do not make cross-chain
+revocation instantaneous. Removing the window would need a short-lived authorization the pool checks before each draw,
+which this prototype leaves out.
 
 ## Layout
 | Path | What |
@@ -32,7 +43,7 @@ Fixed per-chain quotas bound total exposure by the total limit whatever the call
 ## Run
 ```
 forge install foundry-rs/forge-std   # test library (reactive-lib-omni is a submodule: git submodule update --init)
-forge test                        # 20 tests
+forge test                        # 21 tests
 python3 -m venv .venv && .venv/bin/pip install numpy
 .venv/bin/python model/train.py && .venv/bin/python model/replay.py   # regenerate model + test vectors
 cp .env.example .env              # PRIVATE_KEY (throwaway testnet key), RPCs

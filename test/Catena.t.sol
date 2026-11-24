@@ -194,4 +194,34 @@ contract CatenaTest is Test {
         poolUni.setQuota(address(r), ada, 0, 1);
         assertEq(poolUni.quotaOf(ada), 0);
     }
+
+    /// A default is not instantaneous across chains. Locally it blocks borrowing at once; on the other chain the
+    /// old quota stays live until the zero-quota callback lands (the window is the callback latency).
+    function test_defaultBlocksLocallyAtOnceAndRemotelyAfterCallback() public {
+        vm.startPrank(proxy);
+        poolBase.setQuota(address(r), ada, 10 ether, 1);
+        poolUni.setQuota(address(r), ada, 10 ether, 1);
+        vm.stopPrank();
+        vm.prank(ada);
+        poolBase.borrow(2 ether);
+        vm.warp(block.timestamp + 1 hours + 10 minutes + 1);
+        poolBase.markDefault(ada);
+
+        vm.prank(ada);
+        vm.expectRevert(CatenaPool.BorrowerDefaulted.selector);
+        poolBase.borrow(1 ether); // local pool: blocked immediately, old quota notwithstanding
+
+        vm.prank(ada);
+        poolUni.borrow(3 ether); // remote pool: callback not delivered yet, so the old quota still works
+
+        vm.prank(proxy);
+        poolUni.setQuota(address(r), ada, 0, 2); // the zero-quota callback arrives
+        vm.prank(ada);
+        vm.expectRevert();
+        poolUni.borrow(1 ether);
+
+        vm.prank(proxy);
+        poolUni.setQuota(address(r), ada, 10 ether, 1); // a stale callback cannot restore the old quota
+        assertEq(poolUni.quotaOf(ada), 0);
+    }
 }

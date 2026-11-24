@@ -21,6 +21,7 @@ contract CatenaPool is AbstractCallback {
     error NothingOwed();
     error NotYetDefaulted();
     error NotCollateralOnly();
+    error BorrowerDefaulted();
 
     /// @notice Seconds until a loan is due, and extra seconds before anyone may flag a default. Constructor
     ///         parameters so the demo can use minutes and a real deployment could use days.
@@ -36,6 +37,9 @@ contract CatenaPool is AbstractCallback {
     mapping(address => uint256) public owed;
     mapping(address => uint256) public dueAt;
     mapping(address => uint256) public collateral;
+    /// @notice Set locally the moment a default is flagged here. Blocks borrowing at once, without waiting for the
+    ///         reactive contract's zero-quota callback (which matches the passport: a default is permanent).
+    mapping(address => bool) public defaultFlagged;
 
     constructor(IPayable callbackProxy_, address reactive_, bool collateralOnly_, uint256 loanPeriod_, uint256 grace_)
         payable
@@ -77,6 +81,7 @@ contract CatenaPool is AbstractCallback {
     }
 
     function borrow(uint256 amount) external {
+        if (defaultFlagged[msg.sender]) revert BorrowerDefaulted();
         uint256 limit = collateralOnly ? collateral[msg.sender] / 2 : quotaOf(msg.sender);
         uint256 newOwed = owed[msg.sender] + amount;
         if (newOwed > limit) revert QuotaExceeded(amount, limit > owed[msg.sender] ? limit - owed[msg.sender] : 0);
@@ -97,6 +102,7 @@ contract CatenaPool is AbstractCallback {
     /// @notice Anyone can flag a borrower who is past due + grace.
     function markDefault(address borrower) external {
         if (owed[borrower] == 0 || block.timestamp <= dueAt[borrower] + GRACE) revert NotYetDefaulted();
+        defaultFlagged[borrower] = true;
         emit Defaulted(borrower);
     }
 }
