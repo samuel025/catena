@@ -53,7 +53,7 @@ own risk and liquidity controls.
 ## Run
 ```
 forge install foundry-rs/forge-std   # test library (reactive-lib-omni is a submodule: git submodule update --init)
-forge test                        # 23 tests
+forge test                        # 28 tests
 python3 -m venv .venv && .venv/bin/pip install numpy
 .venv/bin/python model/train.py && .venv/bin/python model/replay.py   # regenerate model + test vectors
 cp .env.example .env              # PRIVATE_KEY (throwaway testnet key), RPCs
