@@ -45,10 +45,12 @@ own risk and liquidity controls.
 | `model/replay.py` | Python spec of the contract's state machine, used for whole-history parity tests |
 | `model/model_card.md` | data rules, metrics, baselines, limits (read this before trusting any number) |
 | `model/evaluation.md` | extra checks: risky-borrower approvals, leave-one-population-out, transparent scorecard baseline (`model/evaluate.py`) |
-| `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow |
-| `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `latency.sh`, `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
-| `web/` | static page: look up any wallet and see tier, score, quotas on both chains, reasons and scorings, read live from the RPCs (no backend). `cd web && python3 -m http.server`, open `?w=<address>` |
+| `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow, exhausted callback funds (`Funds.t.sol`), delayed revocation |
+| `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `latency.sh`, `trace_loop.sh` (one full loop with every tx hash), `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
+| `web/` | static page, no backend: look up any wallet and see its tier, the six inputs the model saw, the borrow limit on each chain (owed, quota, secured by collateral), reasons and scorings, read live from the RPCs every 4 s, with live network status. `script/gen_web_config.sh`, then `cd web && python3 -m http.server`, open `?w=<address>` |
 | `docs/DEMO_SCRIPT.md` | shot-by-shot script for the under-3-minute video, with the pre-filming checklist |
+| `docs/SUBMISSION.md` | addresses, a full-loop transaction table, what to look at, honest limits |
+| `LICENSE` | MIT |
 
 ## Run
 ```
@@ -60,6 +62,7 @@ cp .env.example .env              # PRIVATE_KEY (throwaway testnet key), RPCs
 script/deploy.sh                  # reactive first, then pools (callback sender is immutable)
 script/check_funds.sh             # reactive contract needs lREACT, each pool needs native gas
 script/demo.sh && script/demo_capital.sh && script/demo_wallets.sh && script/security_test.sh
+script/trace_loop.sh              # one full loop with every transaction hash, as markdown
 ```
 Funding matters: each reactive transaction costs about 0.03 lREACT at 100 gwei and every pool event triggers one.
 A contract in debt silently stops receiving events. lREACT comes from the faucet contracts in the Reactive docs.
@@ -81,10 +84,29 @@ defaults are 60 s / 60 s / 30 s).
   event on Base to quota update on Base 0 to 2 s (mean 1.0 s); to the quota update on Unichain 1 to 3 s (mean 2.0 s, cross-chain clocks can differ by about 1 s).
 - Model, held-out synthetic data: MLP 66.7% tier accuracy vs 65.9% for a fitted linear formula, so the
   win over a plain formula is small. See `model/model_card.md`.
+- Further checks (`model/evaluation.md`): among borrowers truly below the tier-1 bar, a transparent scorecard wrongly approves
+  20.0%, the MLP 24.5%, the fitted linear formula 29.1%. Tested on a borrower population left out of training, the MLP is slightly
+  better on two populations and clearly worse than the scorecard on the unreliable one. A much larger unconstrained network
+  reaches only 68.4% and ten times more training data changes nothing, so the ceiling is how much a short repayment history can
+  reveal. We claim a working, monotone, auditable on-chain model, not a large accuracy win. Monotonicity is a safety property, not accuracy.
 
 ## Chain facts (Reactive docs)
 Lasna chain ID 5318007, system contract `0x8888…8888`. Callback proxies: Base Sepolia `0x476F…0585`,
 Unichain Sepolia `0x775c…66C1`.
+
+## Reproducing the deployed contracts
+Compiler `solc 0.8.30`, EVM `cancun`, optimizer on with 200 runs (`foundry.toml`). Constructor arguments: `CatenaReactive(15)`;
+`CatenaPool(callbackProxy, reactive, collateralOnly, 40, 15)` with the proxies listed under Chain facts, the reactive address above,
+and `collateralOnly = true` for the "before" pool. On-chain runtime code hashes (`cast codehash`):
+
+| Contract | Code hash |
+|---|---|
+| CatenaReactive (Lasna) | `0xd1f91338d147aecff7e173a890a064825537a7e92e7944c65205160aff5ed68b` |
+| CatenaPool (Base Sepolia) | `0x945a0b2c1a93c868ba341e13954ef46d746c4f1ef5c687a5bfbc0438a40aba3b` |
+| CatenaPool (Unichain Sepolia) | `0x304c9f3c4647c31a6735f600417690067e2aab394fe4fbeac9878e011a6395cf` |
+
+The pools differ by hash because immutables (proxy address, reactive sender, timers) are embedded in the runtime code, so a local
+build matches only after masking them. This is evidence for a reviewer, not verification.
 
 ## Limits
 Synthetic training data; address-based identity (a defaulter can open a new wallet, which starts at tier 0);
@@ -97,4 +119,4 @@ API. Reproduce locally: `forge build --build-info`, then POST the standard JSON 
 (solc 0.8.30, optimizer 200 runs, cancun).
 
 ## Disclosure
-Developed with AI assistance (Claude Code).
+Developed with AI assistance (Claude Code). Licensed under MIT (`LICENSE`).
