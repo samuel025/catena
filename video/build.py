@@ -122,6 +122,6 @@ with open(work / "list.txt", "w") as fh:
 print(f"{len(lst)} stills, {total:.1f}s")
 cmd = ["nice", "-n", "19", "ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(work / "list.txt"),
        "-i", str(audio / "narration.mp3"), "-vf", "fps=25,format=yuv420p", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-       "-threads", "2", "-c:a", "aac", "-b:a", "160k", "-t", f"{total:.2f}", "-movflags", "+faststart", str(out)]
+       "-threads", "2", "-af", "loudnorm=I=-16:TP=-1.5:LRA=11", "-c:a", "aac", "-b:a", "160k", "-t", f"{total:.2f}", "-movflags", "+faststart", str(out)]
 subprocess.run(cmd, check=True)
 print("wrote", out)
