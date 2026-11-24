@@ -240,7 +240,7 @@ contract CatenaTest is Test {
         vm.stopPrank();
     }
 
-    function test_defaultRemovesUnsecuredPartButNotOwnCollateral() public {
+    function test_defaultRemovesUnsecuredPartAndBlocksBorrowingUntilRepaid() public {
         vm.prank(proxy);
         poolBase.setQuota(address(r), ada, 10 ether, 1);
         vm.deal(ada, 100 ether);
@@ -250,6 +250,14 @@ contract CatenaTest is Test {
         vm.warp(block.timestamp + 1 hours + 10 minutes + 1);
         vm.stopPrank();
         poolBase.markDefault(ada);
-        assertEq(poolBase.borrowLimit(ada), 4 ether); // unsecured 10 gone at once, own collateral still counts
+        assertEq(poolBase.borrowLimit(ada), 0); // unresolved default: no borrowing, collateral or not
+        vm.startPrank(ada);
+        vm.expectRevert();
+        poolBase.borrow(1 ether);
+        poolBase.repay(1 ether);
+        vm.stopPrank();
+        assertEq(poolBase.borrowLimit(ada), 4 ether); // only the secured part returns; the unsecured 10 stays gone
+        vm.prank(ada);
+        poolBase.borrow(4 ether);
     }
 }

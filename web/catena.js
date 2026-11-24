@@ -88,8 +88,8 @@ export function makeReader(ethers, cfg) {
       limits: await tierLimits(),
       firstSeen: Number(p.firstSeen),
       inputs: features({ onTime: Number(p.onTime), late: Number(p.late), streak: Number(p.streak), recentLate: Number(p.recentLate), recentCount: Number(p.recentCount), firstSeen: Number(p.firstSeen), debt: p.debt }, limit, Math.floor(Date.now() / 1000)),
-      base: { quota: n(qb), version: Number(vb), owed: n(ob), secured: n(cb / 2n), limit: n(lb), flagged: fb },
-      unichain: { quota: n(qu), version: Number(vu), owed: n(ou), secured: n(cu / 2n), limit: n(lu), flagged: fu },
+      base: { quota: n(qb), version: Number(vb), owed: n(ob), secured: n(cb / 2n), collateral: n(cb), limit: n(lb), flagged: fb },
+      unichain: { quota: n(qu), version: Number(vu), owed: n(ou), secured: n(cu / 2n), collateral: n(cu), limit: n(lu), flagged: fu },
       reasons: explain({ set: r.set, helped: Number(r.helped), hurt: Number(r.hurt), helpedDelta: Number(r.helpedDelta), hurtDelta: Number(r.hurtDelta) }),
     };
   }

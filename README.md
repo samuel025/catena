@@ -19,7 +19,7 @@ What the security design guarantees, and what it does not:
 |---|---|
 | Concurrent draws on several chains cannot exceed the sum of the quotas currently installed (`script/security_test.sh`) | Yes, whatever the callback latency |
 | An older callback cannot overwrite a newer assessment (score version check in the pool) | Yes (`test_poolIgnoresStaleVersion`) |
-| A default flagged on a pool removes that pool's unsecured limit immediately | Yes (`defaultFlagged`, no callback needed) |
+| A default flagged on a pool removes that pool's unsecured limit immediately, and blocks all borrowing there while the defaulted loan is still owed | Yes (`defaultFlagged`, no callback needed) |
 | A default on one chain blocks borrowing on the other chain immediately | **No.** The other pool keeps its old quota until the zero-quota callback arrives, a window of about 1 to 3 seconds measured on testnet. Exposure in that window is bounded by the old quota minus debt (`test_defaultBlocksLocallyAtOnceAndRemotelyAfterCallback`) |
 
 Quotas bound concurrent borrowing against the allocations installed at that moment. They do not make cross-chain
@@ -29,11 +29,29 @@ which this prototype leaves out.
 ## Hybrid lending (not all-or-nothing)
 A pool's borrow limit is `unsecured quota from history + half of the posted collateral` (`borrowLimit`). Good history
 raises the unsecured part, so less collateral is needed. A default removes the unsecured part at once on the pool that
-sees it, and on the other chain when the callback lands, but a borrower's own collateral still supports their own
-secured loans. The collateral-only pool is the same contract with the unsecured part switched off.
+sees it, and on the other chain when the callback lands. While a flagged borrower still owes the defaulted loan they cannot
+borrow at all, even against their own collateral. After they repay, only the secured part (half the collateral) comes back;
+the unsecured part stays at zero. The dashboard shows both parts per chain. The collateral-only pool is the same contract with the unsecured part switched off.
 This demonstrates permissioning from a cross-chain repayment record. It does not show that unsecured lending is
 economically safe: collateral here is accounting only (no withdrawal, no liquidation), and a real lender would keep its
 own risk and liquidity controls.
+
+## Why a neural network at all?
+We do not claim it predicts credit risk better than a simple formula: on synthetic data it is about level with a fitted
+linear formula and a transparent scorecard approves fewer risky borrowers (`model/evaluation.md`). What it demonstrates is
+**deterministic, auditable AI inference inside a reactive contract that drives cross-chain permissions**: trained and quantized
+reproducibly, bit-exact against its Python spec, monotone by construction (so a repayment can never lower a score), and cheap
+enough (about 37k gas per forward pass) to run on every event.
+
+## How it fails (and what is tested)
+| Failure | What happens | Evidence |
+|---|---|---|
+| The reactive contract runs out of lREACT | The network silently stops delivering its events, so scores and quotas stop updating and the last installed quotas stay in force. This happened during testing. Anyone can restore it with `depositTo`, and `script/check_funds.sh` (also a guard in every demo script) catches it first. | `Funds.t.sol` (`coverDebt` needs funds, then clears) |
+| A pool cannot pay for its callbacks | A callback that cannot be paid does not arrive, so the old quota stays. Cuts are the risky case, so a default flagged on the pool itself blocks borrowing without any callback. Anyone can fund the pool and call `coverDebt()`. | `Funds.t.sol` (empty pool still blocks a defaulter; funded pool revives) |
+| A callback arrives late | The pool keeps its old quota until it lands (1 to 3 s measured). Exposure in that window is bounded by the old quota minus debt. | `test_defaultBlocksLocallyAtOnceAndRemotelyAfterCallback` |
+| An older callback arrives after a newer one | Ignored: the pool only accepts a higher score version. | `test_poolIgnoresStaleVersion` |
+| The same event is processed twice | Ignored: events are deduplicated by chain, transaction hash and log index. | `test_duplicateEventIgnored` |
+| A defaulter borrows again against collateral | Blocked while the defaulted loan is still owed. | `test_defaultRemovesUnsecuredPartAndBlocksBorrowingUntilRepaid` |
 
 ## Layout
 | Path | What |
@@ -49,6 +67,7 @@ own risk and liquidity controls.
 | `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `latency.sh`, `trace_loop.sh` (one full loop with every tx hash), `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
 | `web/` | static page, no backend: look up any wallet and see its tier, the six inputs the model saw, the borrow limit on each chain (owed, quota, secured by collateral), reasons and scorings, read live from the RPCs every 4 s, with live network status. `script/gen_web_config.sh`, then `cd web && python3 -m http.server`, open `?w=<address>` |
 | `docs/DEMO_SCRIPT.md` | shot-by-shot script for the under-3-minute video, with the pre-filming checklist |
+| `docs/REPRODUCING_DEPLOYMENTS.md` | toolchain, constructor arguments, code hashes, how to account for immutables, and what was tried for verification |
 | `docs/SUBMISSION.md` | addresses, a full-loop transaction table, what to look at, honest limits |
 | `LICENSE` | MIT |
 
@@ -70,10 +89,10 @@ A contract in debt silently stops receiving events. lREACT comes from the faucet
 ## Deployed (testnets, filming timers: raise period 15 s, loan 40 s, grace 15 s)
 | Contract | Chain | Address |
 |---|---|---|
-| CatenaReactive | Reactive Lasna (5318007) | `0x36479f19b034ee34A316fCe239eC219FA1Bfe219` |
-| CatenaPool | Base Sepolia (84532) | `0x623646b15a4f5220D50c97B20EAD88e32c43Bb44` |
-| CatenaPool | Unichain Sepolia (1301) | `0xc66ca4091E0f07E01a10E2200ffFa7F16FeDBB31` |
-| CatenaPool (collateral-only, demo "before") | Unichain Sepolia | `0x8261f88E31faD3d6f0695AE2188995152e98D38a` |
+| CatenaReactive | Reactive Lasna (5318007) | `0xc79198B4DBaB0d3C1D0454B737719b85cbC12475` |
+| CatenaPool | Base Sepolia (84532) | `0x565d1B97E21d6D80bC5D4Eefe292EC199c0Ca469` |
+| CatenaPool | Unichain Sepolia (1301) | `0xf715898abABFc48fD4D359cf68F5EBe56AC10D9D` |
+| CatenaPool (collateral-only, demo "before") | Unichain Sepolia | `0x088F83Fd4Bc089Cb7D7845c1b32611aeB97eFd25` |
 
 Earlier deployments are archived in `deployments.v*.env`. The timers are constructor parameters (`script/deploy.sh`
 defaults are 60 s / 60 s / 30 s).
@@ -102,11 +121,12 @@ and `collateralOnly = true` for the "before" pool. On-chain runtime code hashes 
 | Contract | Code hash |
 |---|---|
 | CatenaReactive (Lasna) | `0xd1f91338d147aecff7e173a890a064825537a7e92e7944c65205160aff5ed68b` |
-| CatenaPool (Base Sepolia) | `0x945a0b2c1a93c868ba341e13954ef46d746c4f1ef5c687a5bfbc0438a40aba3b` |
-| CatenaPool (Unichain Sepolia) | `0x304c9f3c4647c31a6735f600417690067e2aab394fe4fbeac9878e011a6395cf` |
+| CatenaPool (Base Sepolia) | `0x66625c7f5393ac3b4553c5a2e1326321573a7d553e8cfaea9caaa798ce38bbc5` |
+| CatenaPool (Unichain Sepolia) | `0x8993ca04bdcc10880c85b2a67732d3d7efeef40250ca4cdce7b9599023fbc9ae` |
 
 The pools differ by hash because immutables (proxy address, reactive sender, timers) are embedded in the runtime code, so a local
-build matches only after masking them. This is evidence for a reviewer, not verification.
+build matches only after masking them. This is evidence for a reviewer, not verification. Full steps are in
+`docs/REPRODUCING_DEPLOYMENTS.md`.
 
 ## Limits
 Synthetic training data; address-based identity (a defaulter can open a new wallet, which starts at tier 0);

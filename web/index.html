@@ -340,7 +340,7 @@
     const pc = (v) => (scale > 0 ? (v / scale) * 100 : 0);
     const headroom = Math.max(0, c.limit - c.owed);
     return `<div class="chain">
-      <div class="head"><b>${name}</b><span>${c.flagged ? `<span class="tag alert">Default flagged here</span> ` : ""}<span class="tag">Score v${c.version || "–"}</span></span></div>
+      <div class="head"><b>${name}</b><span>${c.flagged ? `<span class="tag alert">${c.owed > 0 ? "Default flagged: borrowing suspended" : "Default flagged here"}</span> ` : ""}<span class="tag">Score v${c.version || "–"}</span></span></div>
       <div style="margin-top:8px"><span class="big">${num(c.limit, p ? p.limit : 0, 2)}</span> <span class="muted">borrow limit · ${fmt(headroom)} available</span></div>
       <div class="track" role="img" aria-label="${fmt(c.owed)} owed, ${fmt(avail)} available from quota, ${fmt(c.secured)} secured by collateral">
         <i class="seg-owed" style="--w:${pc(owed)}%"></i><i class="seg-avail" style="--w:${pc(avail)}%"></i><i class="seg-sec" style="--w:${pc(sec)}%"></i></div>
@@ -382,6 +382,19 @@
         ${chainRow("Base Sepolia", w.base, prev && prev.base, scale)}
         ${chainRow("Unichain Sepolia", w.unichain, prev && prev.unichain, scale)}
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:4px"><span class="tag ${synced ? "ok" : "wait"}">${synced ? "Both chains on the latest score" : "Callback on its way"}</span><span class="muted" style="font-size:13px">Exposure is bounded by the quotas installed on each chain plus the borrower's own collateral.</span></div>
+      </section>
+      <section class="card c12">
+        <div class="label">How the score becomes borrowing power <span class="aside">Borrow limit = unsecured quota + half the posted collateral</span></div>
+        <table><thead><tr><th></th><th>Base Sepolia</th><th>Unichain Sepolia</th></tr></thead><tbody>
+          ${[
+            ["Unsecured quota from repayment history", (c) => (c.flagged ? 0 : c.quota), "Set by the model's tier and the hard rules"],
+            ["Posted collateral", (c) => c.collateral, "Accounting only in this demo"],
+            ["Collateral contribution (half)", (c) => c.secured, "Always the borrower's own"],
+            ["Total borrow limit", (c) => c.limit, "What the pool enforces on borrow"],
+            ["Owed now", (c) => c.owed, ""],
+          ].map(([t, f, n]) => `<tr><td>${t}${n ? `<span class="d" style="display:block;color:var(--pewter);font-size:12px">${n}</span>` : ""}</td><td class="num">${fmt(f(w.base))}</td><td class="num">${fmt(f(w.unichain))}</td></tr>`).join("")}
+        </tbody></table>
+        <div class="note" style="margin-top:14px">${w.defaulted || w.base.flagged || w.unichain.flagged ? "After a default the unsecured part is zero. While a defaulted loan is still owed, no borrowing is allowed at all, even against collateral. After repayment only the borrower's own collateral supports new loans." : "Good repayment history raises the unsecured part, so the same collateral supports more borrowing than in a collateral-only pool."}</div>
       </section>
       <section class="card c7">
         <div class="label">What the model sees <span class="aside">Six inputs, 0 to 1</span></div>

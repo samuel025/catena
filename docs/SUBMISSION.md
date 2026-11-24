@@ -6,22 +6,22 @@ Repository: https://github.com/samuel025/catena (MIT licensed). Everything here 
 
 | Contract | Chain | Address |
 |---|---|---|
-| CatenaReactive (scores borrowers, runs the MLP) | Lasna | `0x36479f19b034ee34A316fCe239eC219FA1Bfe219` |
-| CatenaPool | Base Sepolia | `0x623646b15a4f5220D50c97B20EAD88e32c43Bb44` |
-| CatenaPool | Unichain Sepolia | `0xc66ca4091E0f07E01a10E2200ffFa7F16FeDBB31` |
-| CatenaPool, collateral-only ("before" case) | Unichain Sepolia | `0x8261f88E31faD3d6f0695AE2188995152e98D38a` |
+| CatenaReactive (scores borrowers, runs the MLP) | Lasna | `0xc79198B4DBaB0d3C1D0454B737719b85cbC12475` |
+| CatenaPool | Base Sepolia | `0x565d1B97E21d6D80bC5D4Eefe292EC199c0Ca469` |
+| CatenaPool | Unichain Sepolia | `0xf715898abABFc48fD4D359cf68F5EBe56AC10D9D` |
+| CatenaPool, collateral-only ("before" case) | Unichain Sepolia | `0x088F83Fd4Bc089Cb7D7845c1b32611aeB97eFd25` |
 
 ## One full loop, origin event to callbacks
 
-Wallet `0x8D7A98ea6e6582fA4c210f915Ba84FFc69ffE508` borrowed 1 unit on Base Sepolia, then repaid it on time.
+Wallet `0x280CDC267f8D1AC55486848375b39f182ABbaC5f` borrowed 1 unit on Base Sepolia, then repaid it on time.
 
 | Step | Chain | Transaction |
 |---|---|---|
-| 1. Borrowed event (origin) | Base Sepolia | [0xa38a15123ecdf99325b82b452a3e3935bef97fc7ba4e0a5cc00d938772be278f](https://sepolia.basescan.org/tx/0xa38a15123ecdf99325b82b452a3e3935bef97fc7ba4e0a5cc00d938772be278f) |
-| 2. Repaid event (origin) | Base Sepolia | [0xaf3f313b4f576534c2268643ad89c911b786f82f229c32226fc81010266f47c7](https://sepolia.basescan.org/tx/0xaf3f313b4f576534c2268643ad89c911b786f82f229c32226fc81010266f47c7) |
-| 3. Reactive transaction: update passport, run MLP, request callbacks | Lasna | [0x95156f24f03f8c5bcade1f572a531ee2f5d7a94bc2693885ba672f85d9a647cf](https://lasna.reactscan.net/tx/0x95156f24f03f8c5bcade1f572a531ee2f5d7a94bc2693885ba672f85d9a647cf) |
-| 4. Callback: quota set | Base Sepolia | [0x82911e2fe5d345180ee04b9251b405977a531bf843efb921dad60639e587756d](https://sepolia.basescan.org/tx/0x82911e2fe5d345180ee04b9251b405977a531bf843efb921dad60639e587756d) |
-| 5. Callback: quota set | Unichain Sepolia | [0x4780dac2b97ddec0d908f87a75e1ed6769c79225b5906c2a76237a6f30ebfff7](https://sepolia.uniscan.xyz/tx/0x4780dac2b97ddec0d908f87a75e1ed6769c79225b5906c2a76237a6f30ebfff7) |
+| 1. Borrowed event (origin) | Base Sepolia | [0xf4775476804efd8323d9ad194c214a9df57bb957eb9fa8ebf4e8b5fc48720487](https://sepolia.basescan.org/tx/0xf4775476804efd8323d9ad194c214a9df57bb957eb9fa8ebf4e8b5fc48720487) |
+| 2. Repaid event (origin) | Base Sepolia | [0x536fc069d132f33480075fd2dd14c5f0c26b395aca2a9a517bc1eb05e8f1edca](https://sepolia.basescan.org/tx/0x536fc069d132f33480075fd2dd14c5f0c26b395aca2a9a517bc1eb05e8f1edca) |
+| 3. Reactive transaction: update passport, run MLP, request callbacks | Lasna | [0x5bd416448caa1a1d5f47e855bcf9dd2e320457f496b5ddd33754ac7ca7cc52ab](https://lasna.reactscan.net/tx/0x5bd416448caa1a1d5f47e855bcf9dd2e320457f496b5ddd33754ac7ca7cc52ab) |
+| 4. Callback: quota set | Base Sepolia | [0x7094aa39ccfd0530a2385eefa5faf251beb07a7dfbaa7c3c242dca7d52761177](https://sepolia.basescan.org/tx/0x7094aa39ccfd0530a2385eefa5faf251beb07a7dfbaa7c3c242dca7d52761177) |
+| 5. Callback: quota set | Unichain Sepolia | [0x302346ea95227e8747137c8efbb82fd223be88220c0fa205707a39f7fd03d872](https://sepolia.uniscan.xyz/tx/0x302346ea95227e8747137c8efbb82fd223be88220c0fa205707a39f7fd03d872) |
 
 Regenerate with `script/trace_loop.sh` (about 0.06 lREACT).
 

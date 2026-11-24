@@ -80,10 +80,13 @@ contract CatenaPool is AbstractCallback {
     }
 
     /// @notice Hybrid limit. Unsecured part = the history-based quota (zero once a default is flagged here, even
-    ///         before the zero-quota callback arrives). Secured part = half of the posted collateral, always
-    ///         available. In collateralOnly mode (the "before" case) only the secured part counts.
-    ///         Collateral is accounting only in this demo: there is no withdrawal and no liquidation.
+    ///         before the zero-quota callback arrives). Secured part = half of the posted collateral. A borrower
+    ///         flagged for default who still owes the defaulted loan cannot borrow at all: their collateral is
+    ///         not a licence to draw again while the default is unresolved. After they repay, only the secured
+    ///         part comes back; the unsecured part stays at zero. In collateralOnly mode (the "before" case) only
+    ///         the secured part counts. Collateral is accounting only in this demo: no withdrawal, no liquidation.
     function borrowLimit(address borrower) public view returns (uint256) {
+        if (defaultFlagged[borrower] && owed[borrower] > 0) return 0;
         uint256 secured = collateral[borrower] / 2;
         if (collateralOnly) return secured;
         return (defaultFlagged[borrower] ? 0 : quotaOf(borrower)) + secured;
