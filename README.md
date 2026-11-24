@@ -43,6 +43,17 @@ script/demo.sh && script/demo_capital.sh && script/demo_wallets.sh && script/sec
 Funding matters: each reactive transaction costs about 0.03 lREACT at 100 gwei and every pool event triggers one.
 A contract in debt silently stops receiving events. lREACT comes from the faucet contracts in the Reactive docs.
 
+## Deployed (testnets, filming timers: raise period 15 s, loan 40 s, grace 15 s)
+| Contract | Chain | Address |
+|---|---|---|
+| CatenaReactive | Reactive Lasna (5318007) | `0xAFD77fcbFa57A76248AaCEf5B8A97fB0E6f83196` |
+| CatenaPool | Base Sepolia (84532) | `0x0Ba9c72BC594BAe1FefF626F48F38E92081368E1` |
+| CatenaPool | Unichain Sepolia (1301) | `0x9f7B529E3459f84EB1e0d6c363a9101C20f709f8` |
+| CatenaPool (collateral-only, demo "before") | Unichain Sepolia | `0x10cDDA4a56DF6cB8290b868893491A5f12211825` |
+
+Earlier deployments are archived in `deployments.v*.env`. The timers are constructor parameters (`script/deploy.sh`
+defaults are 60 s / 60 s / 30 s).
+
 ## Measured (Lasna, Base Sepolia, Unichain Sepolia)
 - `react()` for a repay including two callbacks: 185k to 202k gas (cap 900k). One MLP forward pass: about 37k gas.
 - Origin event to destination callback (`script/latency.sh`, 4 rounds, block timestamps with 1 s resolution):
@@ -56,7 +67,13 @@ Unichain Sepolia `0x775c…66C1`.
 
 ## Limits
 Synthetic training data; address-based identity (a defaulter can open a new wallet, which starts at tier 0);
-one scripted demo, not a product. Reactscan/Sourcify verification was blocked by Sourcify failing to fetch solc 0.8.29.
+one scripted demo, not a product.
+
+**Source verification is not done.** The Reactive docs point to Sourcify, but Sourcify's compile worker fails with
+"Failed fetching solc" for 0.8.29 and 0.8.30 (the Omni library requires `^0.8.29`), and Reactscan has no verification
+API. Reproduce locally: `forge build --build-info`, then POST the standard JSON input to
+`https://sourcify.dev/server/v2/verify/5318007/<address>`. The source is public in this repo and the build is deterministic
+(solc 0.8.30, optimizer 200 runs, cancun).
 
 ## Disclosure
 Developed with AI assistance (Claude Code).

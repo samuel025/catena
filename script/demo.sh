@@ -30,5 +30,6 @@ round() { # n
 echo "start    base: $(q "$BASE_SEPOLIA_RPC" "$POOL_BASE")  unichain: $(q "$UNICHAIN_SEPOLIA_RPC" "$POOL_UNI")"
 START=$(cast call "$POOL_UNI" 'scoreVersion(address)(uint64)' "$ME" --rpc-url "$UNICHAIN_SEPOLIA_RPC")
 round $((START+1))
-echo "(waiting 62s so the next raise is allowed: one tier per period)"; sleep 62
+PERIOD=$(cast call "$REACTIVE" 'raisePeriod()(uint256)' --rpc-url "$LASNA_RPC" | awk '{print $1}')
+echo "(waiting $((PERIOD+2))s so the next raise is allowed: one tier per period)"; sleep $((PERIOD+2))
 round $((START+2))

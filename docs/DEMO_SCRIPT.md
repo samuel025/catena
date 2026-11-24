@@ -4,12 +4,14 @@ Judges score Execution (on-chain reactive transactions and callbacks), Integrati
 shows a live run, three wallet stories, the safety test, and the honest numbers.
 
 ## Before filming (do once, off camera)
-1. **Shorten the timers.** The default 60 s raise period and loan period do not fit in 3 minutes. Redeploy for filming:
-   `REACTIVE_FUND=0.2ether POOL_FUND=0.002ether RAISE_PERIOD=15 LOAN_PERIOD=40 GRACE=15 script/deploy.sh && script/gen_web_config.sh`
+1. **Timers.** The current deployment already uses filming timers (raise period 15 s, loan 40 s, grace 15 s), so the whole
+   hero story takes about 50 s. The `script/deploy.sh` defaults are 60/60/30; if you redeploy, pass
+   `RAISE_PERIOD=15 LOAN_PERIOD=40 GRACE=15` and run `script/gen_web_config.sh`.
 2. **Fund it.** `script/check_funds.sh`. Budget about 1 lREACT for rehearsals plus the take (about 0.03 lREACT per reactive tx).
    Every demo script refuses to start if funds are low. Top up with `depositTo` (the guard prints the command).
-3. **Pre-stage the defaulter.** Run `script/demo_wallets.sh` up to the unpaid loan, or borrow with a fresh wallet about 60 s
-   before you reach that scene, so `markDefault` is ready when you need it.
+3. **Pre-stage the defaulter.** `script/demo_wallets.sh` runs the thin-file wallet (two repayments seconds apart, held at
+   tier 1 by the period rule) and then the defaulter (about 70 s wait for due + grace). For the video, borrow with a fresh
+   wallet about 60 s before that scene so `markDefault` is ready when you need it.
 4. **Serve the page.** `cd web && python3 -m http.server 8000`, open it in a second window next to the terminal.
 5. **Fresh wallet for the hero story.** `script/new_actor.sh`, then `export ACTOR_KEY=...` and open `web/index.html?w=<address>`.
 6. Rehearse once. Cut waits in the edit rather than waiting live.

@@ -13,15 +13,23 @@ POOL_FUND=${POOL_FUND:-0.01ether}          # native gas for each pool's callback
 LOAN_PERIOD=${LOAN_PERIOD:-60}             # demo values: a loan is due in 60s, default may be flagged 30s later
 GRACE=${GRACE:-30}
 
-create() { # rpc chainid value contract [ctor args...]
+create() { # rpc chainid value contract [ctor args...]   (retries: public RPCs can lag a block on nonce)
   local rpc=$1 id=$2 val=$3 c=$4; shift 4
   if [ $# -gt 0 ]; then args=(--constructor-args "$@"); else args=(); fi
-  forge create "$c" --broadcast --rpc-url "$rpc" --chain-id "$id" --private-key "$PRIVATE_KEY" \
-    --value "$val" "${args[@]}" | awk '/Deployed to:/ {print $3}'
+  local out addr
+  for attempt in 1 2 3 4; do
+    out=$(forge create "$c" --broadcast --rpc-url "$rpc" --chain-id "$id" --private-key "$PRIVATE_KEY" \
+      --value "$val" "${args[@]}" 2>&1 || true)
+    addr=$(echo "$out" | awk '/Deployed to:/ {print $3}')
+    [ -n "$addr" ] && { echo "$addr"; return 0; }
+    sleep 5
+  done
+  echo "deploy of $c failed: $out" >&2; return 1
 }
 
 echo "1/4 reactive contract on Lasna"
-REACTIVE=$(create "$LASNA_RPC" $LASNA_ID "$REACTIVE_FUND" src/CatenaReactive.sol:CatenaReactive "${RAISE_PERIOD:-60}")
+if [ -n "${REACTIVE:-}" ]; then echo "  resuming with existing REACTIVE=$REACTIVE"; else
+REACTIVE=$(create "$LASNA_RPC" $LASNA_ID "$REACTIVE_FUND" src/CatenaReactive.sol:CatenaReactive "${RAISE_PERIOD:-60}"); fi
 echo "  CatenaReactive: $REACTIVE"
 
 echo "2/4 pools"
