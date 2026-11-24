@@ -98,7 +98,8 @@ def project(W1, W2):
     np.maximum(W2, 0, out=W2)
 
 
-def train(X, y, Xv, yv, seed=1, epochs=400, lr=0.01):
+def train(X, y, Xv, yv, seed=1, epochs=400, lr=0.01, w=None, wv=None):
+    """w / wv: optional per-sample loss weights (cost-sensitive training). None = unweighted, unchanged behaviour."""
     rng = np.random.default_rng(seed)
     x = X / S; xv_ = Xv / S
     W1 = rng.normal(0, 0.3, (H, NF)); project(W1, np.zeros(H))
@@ -111,9 +112,9 @@ def train(X, y, Xv, yv, seed=1, epochs=400, lr=0.01):
     for ep in range(epochs):
         perm = rng.permutation(n)
         for s0 in range(0, n, bs):
-            idx = perm[s0:s0 + bs]; xb = x[idx]; yb = y[idx]
+            idx = perm[s0:s0 + bs]; xb = x[idx]; yb = y[idx]; wb = 1.0 if w is None else w[idx]
             z = xb @ W1.T + b1; h = np.maximum(z, 0); out = h @ W2 + b2[0]
-            g = 2 * (out - yb) / len(idx)
+            g = 2 * (out - yb) * wb / len(idx)
             gW2 = h.T @ g; gb2 = np.array([g.sum()])
             gh = np.outer(g, W2) * (z > 0)
             gW1 = gh.T @ xb; gb1 = gh.sum(0)
@@ -124,7 +125,7 @@ def train(X, y, Xv, yv, seed=1, epochs=400, lr=0.01):
             project(W1, W2)
         if ep % 10 == 0 or ep == epochs - 1:
             ov = np.maximum(xv_ @ W1.T + b1, 0) @ W2 + b2[0]
-            mse = float(np.mean((np.clip(ov, 0, 1) - yv) ** 2))
+            mse = float(np.mean((1.0 if wv is None else wv) * (np.clip(ov, 0, 1) - yv) ** 2))
             if mse < best:
                 best = mse; best_p = [p.copy() for p in params]
     return best_p, best
