@@ -10,3 +10,14 @@ row "reactive (lREACT, Lasna)   " "$LASNA_RPC" $SYS "$REACTIVE"
 row "base pool (ETH)            " "$BASE_SEPOLIA_RPC" $BASE_PROXY "$POOL_BASE"
 row "unichain pool (ETH)        " "$UNICHAIN_SEPOLIA_RPC" $UNI_PROXY "$POOL_UNI"
 echo "rule of thumb: ~0.03 lREACT per reactive tx at 100 gwei (every pool event, incl. Borrowed, triggers one)"
+
+# --require: fail loudly if the reactive contract cannot pay for the next events (it would otherwise go silent)
+if [ "${1:-}" = "--require" ]; then
+  python3 -I - "$(cast call $SYS 'reserves(address)(uint256)' "$REACTIVE" --rpc-url "$LASNA_RPC" | awk '{print $1}')" "$(cast call $SYS 'debt(address)(uint256)' "$REACTIVE" --rpc-url "$LASNA_RPC" | awk '{print $1}')" <<'PY'
+import sys
+res, debt = int(sys.argv[1]), int(sys.argv[2])
+if debt > 0 or res < 15 * 10**16:
+    print(f"FUNDS LOW: reserves={res/1e18:.3f} lREACT debt={debt/1e18:.3f}. Top up: cast send 0x8888888888888888888888888888888888888888 'depositTo(address)' $REACTIVE --value 1ether --rpc-url $LASNA_RPC --private-key $PRIVATE_KEY")
+    sys.exit(1)
+PY
+fi

@@ -2,8 +2,10 @@
 # Thin-file wallet climbs: borrow+repay on Base, watch the quota arrive on Unichain. Needs deployments.env.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+script/check_funds.sh --require >/dev/null || { script/check_funds.sh --require; exit 1; }
 set -a; source .env; source deployments.env; set +a
-ME=$(cast wallet address --private-key "$PRIVATE_KEY")
+ACTOR_KEY=${ACTOR_KEY:-$PRIVATE_KEY}   # run as another wallet: ACTOR_KEY=0x... script/demo.sh
+ME=$(cast wallet address --private-key "$ACTOR_KEY")
 AMT=1000000000000000000   # 1 fake unit
 
 q() { # chain rpc pool -> "quota version tier"
@@ -17,8 +19,8 @@ wait_version() { # rpc pool target
 
 round() { # n
   echo "== round $1"
-  cast send "$POOL_BASE" "borrow(uint256)" $AMT --rpc-url "$BASE_SEPOLIA_RPC" --private-key "$PRIVATE_KEY" | grep -E "^transactionHash" | sed 's/^/borrow  /'
-  cast send "$POOL_BASE" "repay(uint256)" $AMT --rpc-url "$BASE_SEPOLIA_RPC" --private-key "$PRIVATE_KEY" | grep -E "^transactionHash" | sed 's/^/repay   /'
+  cast send "$POOL_BASE" "borrow(uint256)" $AMT --rpc-url "$BASE_SEPOLIA_RPC" --private-key "$ACTOR_KEY" | grep -E "^transactionHash" | sed 's/^/borrow  /'
+  cast send "$POOL_BASE" "repay(uint256)" $AMT --rpc-url "$BASE_SEPOLIA_RPC" --private-key "$ACTOR_KEY" | grep -E "^transactionHash" | sed 's/^/repay   /'
   wait_version "$UNICHAIN_SEPOLIA_RPC" "$POOL_UNI" "$1"; wait_version "$BASE_SEPOLIA_RPC" "$POOL_BASE" "$1"
   echo "base:     $(q "$BASE_SEPOLIA_RPC" "$POOL_BASE")"
   echo "unichain: $(q "$UNICHAIN_SEPOLIA_RPC" "$POOL_UNI")"

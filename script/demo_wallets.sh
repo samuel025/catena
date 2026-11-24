@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Thin-file wallet (slow capped climb) and defaulter (quotas drop to zero on both chains, hard rule).
 set -euo pipefail; cd "$(dirname "$0")/.."
+script/check_funds.sh --require >/dev/null || { script/check_funds.sh --require; exit 1; }
 set -a; source .env; source deployments.env; set +a; source script/lib.sh
 AMT=1000000000000000000
 tx() { cast send "$@" 2>&1 | grep -E "^transactionHash" | awk '{print $2}'; }

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catena credit passport</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f6f5f2; --card:#fff; --ink:#1c1b19; --mute:#6b6862; --line:#e4e1da;
+          --t0:#b04a3d; --t1:#c68a1e; --t2:#3f8f5b; --t3:#2563a8; --accent:#2563a8; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151412; --card:#1f1d1a; --ink:#f0eee9; --mute:#9a968d; --line:#33302b;
+          --t0:#e07a6c; --t1:#e0a940; --t2:#5cbb7f; --t3:#6aa5e8; --accent:#6aa5e8; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width: 880px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--mute); margin: 0 0 22px; }
+  form { display:flex; gap:8px; margin-bottom: 18px; }
+  input { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); font:13px ui-monospace,SFMono-Regular,Menlo,monospace; }
+  button { padding:10px 16px; border:0; border-radius:8px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+  @media (max-width:640px){ .grid{grid-template-columns:1fr;} }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
+  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--mute); margin:0 0 12px; font-weight:600; }
+  .full { grid-column: 1 / -1; }
+  .tier { display:flex; align-items:baseline; gap:12px; }
+  .tier b { font-size:44px; line-height:1; letter-spacing:-0.02em; }
+  .tier span { color:var(--mute); }
+  .gauge { position:relative; height:10px; border-radius:6px; background:var(--line); margin:16px 0 6px; }
+  .gauge i { position:absolute; left:0; top:0; bottom:0; border-radius:6px; background:var(--accent); transition:width .5s; }
+  .gauge u { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--mute); opacity:.5; }
+  .ticks { display:flex; justify-content:space-between; color:var(--mute); font-size:11px; }
+  .bar { height:22px; border-radius:6px; background:var(--line); overflow:hidden; margin:4px 0 2px; }
+  .bar i { display:block; height:100%; background:var(--accent); transition:width .5s; }
+  .row { display:flex; justify-content:space-between; font-size:13px; color:var(--mute); }
+  .row strong { color:var(--ink); font-weight:600; }
+  .reason { margin:6px 0; }
+  .reason small { color:var(--mute); display:block; margin-top:8px; }
+  .good { color:var(--t2); } .bad { color:var(--t0); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  td,th { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); }
+  th { color:var(--mute); font-weight:500; }
+  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
+  code { font:12px ui-monospace,Menlo,monospace; }
+  .flash { animation: flash 1.2s; } @keyframes flash { from { background: color-mix(in srgb, var(--accent) 25%, transparent);} to { background: transparent; } }
+  .status { color:var(--mute); font-size:12px; margin-top:14px; }
+  .t0{color:var(--t0)} .t1{color:var(--t1)} .t2{color:var(--t2)} .t3{color:var(--t3)}
+</style>
+</head>
+<body>
+<main>
+  <h1>Catena credit passport</h1>
+  <p class="sub">A reactive contract on Lasna scores a wallet from its loan events on Base Sepolia and Unichain Sepolia, then sets its borrow quota on both chains. Test networks, fake money.</p>
+  <form id="f"><input id="addr" placeholder="Wallet address 0x…" spellcheck="false" autocomplete="off"><button>Look up</button></form>
+  <div id="out"></div>
+  <p class="status" id="status"></p>
+</main>
+<script type="module">
+  import { ethers } from "https://esm.sh/ethers@6.13.4";
+  import { CONFIG } from "./config.js";
+  import { makeReader, TIER_THRESHOLDS, SCORE_MAX, tierFromScore } from "./catena.js";
+
+  const reader = makeReader(ethers, CONFIG);
+  const $ = (id) => document.getElementById(id);
+  const short = (h) => h.slice(0, 8) + "…" + h.slice(-6);
+  let current = null, last = null, timer = null;
+
+  const q = new URLSearchParams(location.search).get("w");
+  if (q) { $("addr").value = q; load(q); }
+  $("f").addEventListener("submit", (e) => { e.preventDefault(); load($("addr").value.trim()); });
+
+  function load(a) {
+    if (!ethers.isAddress(a)) { $("out").innerHTML = ""; $("status").textContent = "That is not a valid address."; return; }
+    current = ethers.getAddress(a); last = null; history.replaceState(null, "", "?w=" + current);
+    clearInterval(timer); refresh(); timer = setInterval(refresh, 4000);
+  }
+
+  async function refresh() {
+    try {
+      const [w, hist] = await Promise.all([reader.readWallet(current), reader.recentScores(current)]);
+      render(w, hist);
+      $("status").textContent = "Live from the chains, refreshing every 4 seconds. Last read " + new Date().toLocaleTimeString() + ".";
+    } catch (e) { $("status").textContent = "Read failed (" + (e.shortMessage || e.message) + "). Retrying."; }
+  }
+
+  function render(w, hist) {
+    const changed = last && (last.version !== w.version || last.base.quota !== w.base.quota || last.unichain.quota !== w.unichain.quota);
+    last = w;
+    const pct = (v) => (w.totalLimit > 0 ? Math.min(100, (v / w.totalLimit) * 100) : 0);
+    const synced = w.base.version === w.unichain.version;
+    const R = w.reasons;
+    $("out").innerHTML = `
+    <div class="grid ${changed ? "flash" : ""}">
+      <div class="card">
+        <h2>Credit tier</h2>
+        <div class="tier"><b class="t${w.tier}">${w.tier}</b><span>${w.defaulted ? "defaulted (hard rule)" : w.version === 0 ? "not scored yet, starter quota" : "score " + w.score + " / " + SCORE_MAX}</span></div>
+        <div class="gauge"><i style="width:${w.defaulted || w.version === 0 ? 0 : (w.score / SCORE_MAX) * 100}%"></i>${TIER_THRESHOLDS.map((t) => `<u style="left:${(t / SCORE_MAX) * 100}%"></u>`).join("")}</div>
+        <div class="ticks"><span>0</span><span>tier 1 at ${TIER_THRESHOLDS[0]}</span><span>2 at ${TIER_THRESHOLDS[1]}</span><span>3 at ${TIER_THRESHOLDS[2]}</span></div>
+        ${!w.defaulted && w.version > 0 && tierFromScore(w.score) > w.tier ? `<div class="reason" style="margin-top:12px"><small>The score qualifies for tier ${tierFromScore(w.score)}, but a limit can rise only one tier per period, so it is held at tier ${w.tier} until a later repayment.</small></div>` : ""}
+      </div>
+      <div class="card">
+        <h2>Why</h2>
+        ${R.helped ? `<div class="reason good">Helped most: ${R.helped}</div>` : ""}
+        ${R.hurt ? `<div class="reason bad">Hurt most: ${R.hurt}</div>` : ""}
+        ${!R.helped && !R.hurt ? `<div class="reason">Nothing recorded yet.</div>` : ""}
+        <div class="reason"><small>${R.note}</small></div>
+      </div>
+      <div class="card full">
+        <h2>Borrow quota on each chain <span style="text-transform:none;letter-spacing:0">(total limit at this tier: ${w.totalLimit})</span></h2>
+        <div class="row"><span>Base Sepolia</span><span><strong>${w.base.quota}</strong> quota · ${w.base.owed} owed · score v${w.base.version}</span></div>
+        <div class="bar"><i style="width:${pct(w.base.quota)}%"></i></div>
+        <div class="row" style="margin-top:12px"><span>Unichain Sepolia</span><span><strong>${w.unichain.quota}</strong> quota · ${w.unichain.owed} owed · score v${w.unichain.version}</span></div>
+        <div class="bar"><i style="width:${pct(w.unichain.quota)}%"></i></div>
+        <div class="row" style="margin-top:10px"><span>${synced ? "Both chains are on the same score version." : "A callback is still on its way to one chain."}</span><span>Exposure is bounded by the sum of quotas.</span></div>
+      </div>
+      <div class="card">
+        <h2>Passport</h2>
+        <div class="row"><span>On-time repayments</span><strong>${w.onTime}</strong></div>
+        <div class="row"><span>Late repayments</span><strong>${w.late}</strong></div>
+        <div class="row"><span>Current on-time streak</span><strong>${w.streak}</strong></div>
+        <div class="row"><span>Passport address</span><a href="${CONFIG.chains.lasna.explorer}address/${CONFIG.reactive}" target="_blank" rel="noopener"><code>${short(CONFIG.reactive)}</code></a></div>
+      </div>
+      <div class="card">
+        <h2>Recent scorings (Lasna)</h2>
+        ${hist.length ? `<table><tr><th>v</th><th>score</th><th>tier</th><th>tx</th></tr>${hist.map((h) => `<tr><td>${h.version}</td><td>${h.score}</td><td>${h.tier}</td><td><a href="${CONFIG.chains.lasna.explorer}tx/${h.tx}" target="_blank" rel="noopener"><code>${short(h.tx)}</code></a></td></tr>`).join("")}</table>` : `<div class="reason">No scorings yet.</div>`}
+      </div>
+    </div>`;
+  }
+</script>
+</body>
+</html>

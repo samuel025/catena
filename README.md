@@ -25,7 +25,9 @@ Fixed per-chain quotas bound total exposure by the total limit whatever the call
 | `model/replay.py` | Python spec of the contract's state machine, used for whole-history parity tests |
 | `model/model_card.md` | data rules, metrics, baselines, limits (read this before trusting any number) |
 | `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow |
-| `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `check_funds.sh` |
+| `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `latency.sh`, `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
+| `web/` | static page: look up any wallet and see tier, score, quotas on both chains, reasons and scorings, read live from the RPCs (no backend). `cd web && python3 -m http.server`, open `?w=<address>` |
+| `docs/DEMO_SCRIPT.md` | shot-by-shot script for the under-3-minute video, with the pre-filming checklist |
 
 ## Run
 ```
@@ -43,7 +45,8 @@ A contract in debt silently stops receiving events. lREACT comes from the faucet
 
 ## Measured (Lasna, Base Sepolia, Unichain Sepolia)
 - `react()` for a repay including two callbacks: 185k to 202k gas (cap 900k). One MLP forward pass: about 37k gas.
-- Origin event to destination callback: about 2 seconds (1 second timestamp resolution).
+- Origin event to destination callback (`script/latency.sh`, 4 rounds, block timestamps with 1 s resolution):
+  event on Base to quota update on Base 0 to 2 s (mean 1.0 s); to the quota update on Unichain 1 to 3 s (mean 2.0 s, cross-chain clocks can differ by about 1 s).
 - Model, held-out synthetic data: MLP 66.7% tier accuracy vs 65.9% for a fitted linear formula, so the
   win over a plain formula is small. See `model/model_card.md`.
 

@@ -15,5 +15,6 @@ new_wallet() { # name -> sets ${name}_KEY / ${name}_ADDR and saves to .demo-wall
   local addr key; addr=$(echo "$out" | awk '/Address/ {print $2}'); key=$(echo "$out" | awk '/Private key/ {print $3}')
   echo "${1}_ADDR=$addr" >> .demo-wallets.env; echo "${1}_KEY=$key" >> .demo-wallets.env
   cast send "$addr" --value 0.0004ether --rpc-url "$BASE_SEPOLIA_RPC" --private-key "$PRIVATE_KEY" >/dev/null
+  cast send "$addr" --value 0.0004ether --rpc-url "$UNICHAIN_SEPOLIA_RPC" --private-key "$PRIVATE_KEY" >/dev/null
   eval "${1}_ADDR=$addr; ${1}_KEY=$key"
 }
