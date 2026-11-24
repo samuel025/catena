@@ -67,10 +67,10 @@ A contract in debt silently stops receiving events. lREACT comes from the faucet
 ## Deployed (testnets, filming timers: raise period 15 s, loan 40 s, grace 15 s)
 | Contract | Chain | Address |
 |---|---|---|
-| CatenaReactive | Reactive Lasna (5318007) | `0x8917AC57AeC11cA99356E55df5a8B452ac4ecdbc` |
-| CatenaPool | Base Sepolia (84532) | `0x070C93De5DF7040115ACC789B4A795b0AdAc1143` |
-| CatenaPool | Unichain Sepolia (1301) | `0xa56Ad6E7Bc2775666f67de2646641Bf8F62ababb` |
-| CatenaPool (collateral-only, demo "before") | Unichain Sepolia | `0x65f2b76bb93749c314ab18E9B08203b1dC21E96a` |
+| CatenaReactive | Reactive Lasna (5318007) | `0x36479f19b034ee34A316fCe239eC219FA1Bfe219` |
+| CatenaPool | Base Sepolia (84532) | `0x623646b15a4f5220D50c97B20EAD88e32c43Bb44` |
+| CatenaPool | Unichain Sepolia (1301) | `0xc66ca4091E0f07E01a10E2200ffFa7F16FeDBB31` |
+| CatenaPool (collateral-only, demo "before") | Unichain Sepolia | `0x8261f88E31faD3d6f0695AE2188995152e98D38a` |
 
 Earlier deployments are archived in `deployments.v*.env`. The timers are constructor parameters (`script/deploy.sh`
 defaults are 60 s / 60 s / 30 s).
