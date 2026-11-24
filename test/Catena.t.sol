@@ -208,7 +208,7 @@ contract CatenaTest is Test {
         poolBase.markDefault(ada);
 
         vm.prank(ada);
-        vm.expectRevert(CatenaPool.BorrowerDefaulted.selector);
+        vm.expectRevert();
         poolBase.borrow(1 ether); // local pool: blocked immediately, old quota notwithstanding
 
         vm.prank(ada);
@@ -223,5 +223,33 @@ contract CatenaTest is Test {
         vm.prank(proxy);
         poolUni.setQuota(address(r), ada, 10 ether, 1); // a stale callback cannot restore the old quota
         assertEq(poolUni.quotaOf(ada), 0);
+    }
+
+    function test_hybridCollateralAddsToHistoryQuota() public {
+        vm.prank(proxy);
+        poolBase.setQuota(address(r), ada, 10 ether, 1);
+        vm.startPrank(ada);
+        vm.deal(ada, 100 ether);
+        vm.expectRevert();
+        poolBase.borrow(14 ether); // above the 10 unsecured quota, no collateral yet
+        poolBase.depositCollateral{ value: 8 ether }(); // secured part: 4
+        assertEq(poolBase.borrowLimit(ada), 14 ether);
+        poolBase.borrow(14 ether);
+        vm.expectRevert();
+        poolBase.borrow(1);
+        vm.stopPrank();
+    }
+
+    function test_defaultRemovesUnsecuredPartButNotOwnCollateral() public {
+        vm.prank(proxy);
+        poolBase.setQuota(address(r), ada, 10 ether, 1);
+        vm.deal(ada, 100 ether);
+        vm.startPrank(ada);
+        poolBase.depositCollateral{ value: 8 ether }();
+        poolBase.borrow(1 ether);
+        vm.warp(block.timestamp + 1 hours + 10 minutes + 1);
+        vm.stopPrank();
+        poolBase.markDefault(ada);
+        assertEq(poolBase.borrowLimit(ada), 4 ether); // unsecured 10 gone at once, own collateral still counts
     }
 }

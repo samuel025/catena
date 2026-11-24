@@ -19,12 +19,21 @@ What the security design guarantees, and what it does not:
 |---|---|
 | Concurrent draws on several chains cannot exceed the sum of the quotas currently installed (`script/security_test.sh`) | Yes, whatever the callback latency |
 | An older callback cannot overwrite a newer assessment (score version check in the pool) | Yes (`test_poolIgnoresStaleVersion`) |
-| A default flagged on a pool blocks borrowing on that pool immediately | Yes (`defaultFlagged`, no callback needed) |
+| A default flagged on a pool removes that pool's unsecured limit immediately | Yes (`defaultFlagged`, no callback needed) |
 | A default on one chain blocks borrowing on the other chain immediately | **No.** The other pool keeps its old quota until the zero-quota callback arrives, a window of about 1 to 3 seconds measured on testnet. Exposure in that window is bounded by the old quota minus debt (`test_defaultBlocksLocallyAtOnceAndRemotelyAfterCallback`) |
 
 Quotas bound concurrent borrowing against the allocations installed at that moment. They do not make cross-chain
 revocation instantaneous. Removing the window would need a short-lived authorization the pool checks before each draw,
 which this prototype leaves out.
+
+## Hybrid lending (not all-or-nothing)
+A pool's borrow limit is `unsecured quota from history + half of the posted collateral` (`borrowLimit`). Good history
+raises the unsecured part, so less collateral is needed. A default removes the unsecured part at once on the pool that
+sees it, and on the other chain when the callback lands, but a borrower's own collateral still supports their own
+secured loans. The collateral-only pool is the same contract with the unsecured part switched off.
+This demonstrates permissioning from a cross-chain repayment record. It does not show that unsecured lending is
+economically safe: collateral here is accounting only (no withdrawal, no liquidation), and a real lender would keep its
+own risk and liquidity controls.
 
 ## Layout
 | Path | What |
@@ -44,7 +53,7 @@ which this prototype leaves out.
 ## Run
 ```
 forge install foundry-rs/forge-std   # test library (reactive-lib-omni is a submodule: git submodule update --init)
-forge test                        # 21 tests
+forge test                        # 23 tests
 python3 -m venv .venv && .venv/bin/pip install numpy
 .venv/bin/python model/train.py && .venv/bin/python model/replay.py   # regenerate model + test vectors
 cp .env.example .env              # PRIVATE_KEY (throwaway testnet key), RPCs

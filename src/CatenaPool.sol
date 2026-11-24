@@ -21,7 +21,6 @@ contract CatenaPool is AbstractCallback {
     error NothingOwed();
     error NotYetDefaulted();
     error NotCollateralOnly();
-    error BorrowerDefaulted();
 
     /// @notice Seconds until a loan is due, and extra seconds before anyone may flag a default. Constructor
     ///         parameters so the demo can use minutes and a real deployment could use days.
@@ -80,9 +79,18 @@ contract CatenaPool is AbstractCallback {
         collateral[msg.sender] += msg.value;
     }
 
+    /// @notice Hybrid limit. Unsecured part = the history-based quota (zero once a default is flagged here, even
+    ///         before the zero-quota callback arrives). Secured part = half of the posted collateral, always
+    ///         available. In collateralOnly mode (the "before" case) only the secured part counts.
+    ///         Collateral is accounting only in this demo: there is no withdrawal and no liquidation.
+    function borrowLimit(address borrower) public view returns (uint256) {
+        uint256 secured = collateral[borrower] / 2;
+        if (collateralOnly) return secured;
+        return (defaultFlagged[borrower] ? 0 : quotaOf(borrower)) + secured;
+    }
+
     function borrow(uint256 amount) external {
-        if (defaultFlagged[msg.sender]) revert BorrowerDefaulted();
-        uint256 limit = collateralOnly ? collateral[msg.sender] / 2 : quotaOf(msg.sender);
+        uint256 limit = borrowLimit(msg.sender);
         uint256 newOwed = owed[msg.sender] + amount;
         if (newOwed > limit) revert QuotaExceeded(amount, limit > owed[msg.sender] ? limit - owed[msg.sender] : 0);
         owed[msg.sender] = newOwed;
