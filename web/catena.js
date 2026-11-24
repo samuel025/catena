@@ -12,7 +12,34 @@ const POOL_ABI = [
   "function quotaOf(address) view returns (uint256)",
   "function scoreVersion(address) view returns (uint64)",
   "function owed(address) view returns (uint256)",
+  "function collateral(address) view returns (uint256)",
+  "function borrowLimit(address) view returns (uint256)",
+  "function defaultFlagged(address) view returns (bool)",
 ];
+
+export const S = 1024;
+export const WINDOW = 86400; // CatenaReactive.HISTORY_WINDOW
+export const BASELINE = [512, 205, 614, 307, 512, 512]; // typical borrower, model/train.py
+export const FEATURE_NAMES = ["On-time repayments", "Late-payment ratio", "Recent consistency", "Debt against limit", "History length", "On-time streak"];
+export const FEATURE_SIGN = [1, -1, 1, -1, 1, 1]; // +1: higher is better for the score
+
+const popcount = (v) => v.toString(2).split("1").length - 1;
+
+/** The six model inputs (0..1024), mirroring CatenaReactive._features. History length uses `now` (seconds). */
+export function features(p, limit, now) {
+  const tot = p.onTime + p.late;
+  const onRecent = p.recentCount - popcount(p.recentLate);
+  const age = p.firstSeen > 0 ? Math.max(0, now - p.firstSeen) : 0;
+  const debt = p.debt < limit ? p.debt : limit;
+  return [
+    Math.floor((Math.min(p.onTime, 10) * S) / 10),
+    tot ? Math.floor((p.late * S) / tot) : 0,
+    Math.floor((onRecent * S) / 5),
+    limit > 0n ? Number((debt * BigInt(S)) / limit) : 0,
+    Math.floor((Math.min(age, WINDOW) * S) / WINDOW),
+    Math.floor((Math.min(p.streak, 10) * S) / 10),
+  ];
+}
 
 // Feature ids match CatenaReactive: 6 = none, 7 = default rule.
 const HELPED = ["on-time repayments", "few or no late payments", "consistent recent repayments", "low outstanding debt", "a long history", "a recent on-time streak"];
@@ -38,12 +65,18 @@ export function makeReader(ethers, cfg) {
   const poolBase = new ethers.Contract(cfg.chains.base.pool, POOL_ABI, base);
   const poolUni = new ethers.Contract(cfg.chains.unichain.pool, POOL_ABI, uni);
 
+  let limitsP = null; // tier limits never change after deployment, so read them once
+  const tierLimits = () => (limitsP ||= Promise.all([0, 1, 2, 3].map((t) => reactive.tierLimit(t))).then((a) => a.map((x) => Number(x / 10n ** 16n) / 100)));
+
   async function readWallet(addr) {
-    const [p, r, qb, qu, vb, vu, ob, ou] = await Promise.all([
+    const [p, r, qb, qu, vb, vu, ob, ou, cb, cu, lb, lu, fb, fu] = await Promise.all([
       reactive.passports(addr), reactive.reasons(addr),
       poolBase.quotaOf(addr), poolUni.quotaOf(addr),
       poolBase.scoreVersion(addr), poolUni.scoreVersion(addr),
       poolBase.owed(addr), poolUni.owed(addr),
+      poolBase.collateral(addr), poolUni.collateral(addr),
+      poolBase.borrowLimit(addr), poolUni.borrowLimit(addr),
+      poolBase.defaultFlagged(addr), poolUni.defaultFlagged(addr),
     ]);
     const limit = await reactive.tierLimit(p.tier);
     const unit = 10n ** 18n;
@@ -52,8 +85,11 @@ export function makeReader(ethers, cfg) {
       tier: Number(p.tier), score: Number(p.score), version: Number(p.version), defaulted: p.defaulted,
       onTime: Number(p.onTime), late: Number(p.late), streak: Number(p.streak),
       totalLimit: n(limit),
-      base: { quota: n(qb), version: Number(vb), owed: n(ob) },
-      unichain: { quota: n(qu), version: Number(vu), owed: n(ou) },
+      limits: await tierLimits(),
+      firstSeen: Number(p.firstSeen),
+      inputs: features({ onTime: Number(p.onTime), late: Number(p.late), streak: Number(p.streak), recentLate: Number(p.recentLate), recentCount: Number(p.recentCount), firstSeen: Number(p.firstSeen), debt: p.debt }, limit, Math.floor(Date.now() / 1000)),
+      base: { quota: n(qb), version: Number(vb), owed: n(ob), secured: n(cb / 2n), limit: n(lb), flagged: fb },
+      unichain: { quota: n(qu), version: Number(vu), owed: n(ou), secured: n(cu / 2n), limit: n(lu), flagged: fu },
       reasons: explain({ set: r.set, helped: Number(r.helped), hurt: Number(r.hurt), helpedDelta: Number(r.helpedDelta), hurtDelta: Number(r.hurtDelta) }),
     };
   }
@@ -63,5 +99,11 @@ export function makeReader(ethers, cfg) {
     const logs = await reactive.queryFilter(reactive.filters.Scored(addr), Math.max(0, head - blocks), head);
     return logs.slice(-6).reverse().map((l) => ({ score: Number(l.args.score), tier: Number(l.args.tier), version: Number(l.args.version), tx: l.transactionHash, block: l.blockNumber }));
   }
-  return { readWallet, recentScores };
+  async function heads() {
+    const one = async (p) => { const t = performance.now(); const b = await p.getBlockNumber(); return { block: b, ms: Math.round(performance.now() - t) }; };
+    const [l, b, u] = await Promise.allSettled([one(lasna), one(base), one(uni)]);
+    const v = (x) => (x.status === "fulfilled" ? x.value : null);
+    return { lasna: v(l), base: v(b), unichain: v(u) };
+  }
+  return { readWallet, recentScores, heads };
 }

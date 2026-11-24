@@ -3,127 +3,306 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Catena credit passport</title>
+<title>Catena · cross-chain credit passport</title>
+<meta name="description" content="A neural net inside a Reactive contract scores a wallet from loan events on Base Sepolia and Unichain Sepolia and sets its borrow quota on both chains.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563a8'/%3E%3Cpath d='M11 12a5 5 0 0 1 5-5h1v3h-1a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4h-1v3h1a5 5 0 0 0 0-10h-4' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
-  :root { color-scheme: light dark; --bg:#f6f5f2; --card:#fff; --ink:#1c1b19; --mute:#6b6862; --line:#e4e1da;
-          --t0:#b04a3d; --t1:#c68a1e; --t2:#3f8f5b; --t3:#2563a8; --accent:#2563a8; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#151412; --card:#1f1d1a; --ink:#f0eee9; --mute:#9a968d; --line:#33302b;
-          --t0:#e07a6c; --t1:#e0a940; --t2:#5cbb7f; --t3:#6aa5e8; --accent:#6aa5e8; } }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
-  main { max-width: 880px; margin: 0 auto; padding: 28px 20px 60px; }
-  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
-  .sub { color: var(--mute); margin: 0 0 22px; }
-  form { display:flex; gap:8px; margin-bottom: 18px; }
-  input { flex:1; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--ink); font:13px ui-monospace,SFMono-Regular,Menlo,monospace; }
-  button { padding:10px 16px; border:0; border-radius:8px; background:var(--accent); color:#fff; font:inherit; cursor:pointer; }
-  .grid { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
-  @media (max-width:640px){ .grid{grid-template-columns:1fr;} }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; }
-  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--mute); margin:0 0 12px; font-weight:600; }
-  .full { grid-column: 1 / -1; }
-  .tier { display:flex; align-items:baseline; gap:12px; }
-  .tier b { font-size:44px; line-height:1; letter-spacing:-0.02em; }
-  .tier span { color:var(--mute); }
-  .gauge { position:relative; height:10px; border-radius:6px; background:var(--line); margin:16px 0 6px; }
-  .gauge i { position:absolute; left:0; top:0; bottom:0; border-radius:6px; background:var(--accent); transition:width .5s; }
-  .gauge u { position:absolute; top:-4px; bottom:-4px; width:2px; background:var(--mute); opacity:.5; }
-  .ticks { display:flex; justify-content:space-between; color:var(--mute); font-size:11px; }
-  .bar { height:22px; border-radius:6px; background:var(--line); overflow:hidden; margin:4px 0 2px; }
-  .bar i { display:block; height:100%; background:var(--accent); transition:width .5s; }
-  .row { display:flex; justify-content:space-between; font-size:13px; color:var(--mute); }
-  .row strong { color:var(--ink); font-weight:600; }
-  .reason { margin:6px 0; }
-  .reason small { color:var(--mute); display:block; margin-top:8px; }
-  .good { color:var(--t2); } .bad { color:var(--t0); }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  td,th { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); }
-  th { color:var(--mute); font-weight:500; }
-  a { color:var(--accent); text-decoration:none; } a:hover{ text-decoration:underline; }
-  code { font:12px ui-monospace,Menlo,monospace; }
-  .flash { animation: flash 1.2s; } @keyframes flash { from { background: color-mix(in srgb, var(--accent) 25%, transparent);} to { background: transparent; } }
-  .status { color:var(--mute); font-size:12px; margin-top:14px; }
+  :root { color-scheme: light dark;
+    --bg:#f5f4f0; --card:#ffffff; --ink:#1b1a18; --mute:#6a675f; --line:#e6e3dc; --soft:#f0eee8;
+    --t0:#b9473a; --t1:#c4861a; --t2:#2f8a55; --t3:#2563a8; --accent:#2563a8; --accent-ink:#fff;
+    --shadow:0 1px 2px rgba(20,18,12,.05), 0 6px 18px rgba(20,18,12,.05); --ok:#2f8a55; --warn:#c4861a; --bad:#b9473a; }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg:#121110; --card:#1c1a18; --ink:#f1efea; --mute:#a09c92; --line:#2f2c27; --soft:#252320;
+    --t0:#e5796b; --t1:#e5ae45; --t2:#5fc185; --t3:#6fa8ea; --accent:#6fa8ea; --accent-ink:#0f1a2b;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35); --ok:#5fc185; --warn:#e5ae45; --bad:#e5796b; } }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:var(--accent); text-decoration:none; } a:hover { text-decoration:underline; }
+  code, .mono { font:12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+  .wrap { max-width:1000px; margin:0 auto; padding:0 20px; }
+
+  header.top { border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--card) 80%, transparent); backdrop-filter:blur(8px); position:sticky; top:0; z-index:5; }
+  .bar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; flex-wrap:wrap; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:650; letter-spacing:-.01em; font-size:17px; }
+  .brand svg { width:28px; height:28px; }
+  .brand small { font-weight:500; color:var(--mute); font-size:13px; margin-left:4px; }
+  .pills { display:flex; gap:8px; flex-wrap:wrap; }
+  .pill { display:flex; align-items:center; gap:7px; padding:4px 10px; border:1px solid var(--line); border-radius:999px; background:var(--card); font-size:12px; color:var(--mute); }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--mute); }
+  .dot.up { background:var(--ok); box-shadow:0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+  .dot.down { background:var(--bad); }
+
+  .hero { padding:36px 0 8px; }
+  h1 { font-size:clamp(26px,4.4vw,38px); line-height:1.15; letter-spacing:-.025em; margin:0 0 10px; font-weight:700; max-width:22ch; }
+  .lead { color:var(--mute); max-width:62ch; margin:0 0 22px; font-size:16px; }
+  form.lookup { display:flex; gap:8px; max-width:720px; }
+  .field { flex:1; position:relative; }
+  .field input { width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--ink); font:13.5px ui-monospace,SFMono-Regular,Menlo,monospace; box-shadow:var(--shadow); }
+  .field input::placeholder { color:var(--mute); opacity:.8; }
+  button.primary { padding:0 20px; border:0; border-radius:10px; background:var(--accent); color:var(--accent-ink); font:inherit; font-weight:600; cursor:pointer; min-height:46px; }
+  button.primary:hover { filter:brightness(1.06); }
+  .examples { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0 0; color:var(--mute); font-size:13px; }
+  .chip { border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:999px; padding:4px 12px; cursor:pointer; font:inherit; font-size:13px; }
+  .chip:hover { border-color:var(--accent); color:var(--accent); }
+
+  .flow { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:28px 0 8px; counter-reset:s; }
+  .flow div { position:relative; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px 12px 40px; font-size:13px; color:var(--mute); box-shadow:var(--shadow); }
+  .flow div::before { counter-increment:s; content:counter(s); position:absolute; left:12px; top:12px; width:20px; height:20px; border-radius:50%; background:var(--soft); color:var(--ink); font-size:11px; font-weight:700; display:grid; place-items:center; }
+  .flow b { display:block; color:var(--ink); font-size:13px; margin-bottom:1px; }
+  @media (max-width:820px){ .flow{grid-template-columns:1fr 1fr;} }
+  @media (max-width:520px){ .flow{grid-template-columns:1fr;} form.lookup{flex-direction:column;} }
+
+  main { padding-bottom:56px; }
+  .grid { display:grid; grid-template-columns:repeat(12,1fr); gap:14px; margin-top:22px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; box-shadow:var(--shadow); min-width:0; }
+  .c4 { grid-column:span 4; } .c5 { grid-column:span 5; } .c6 { grid-column:span 6; } .c7 { grid-column:span 7; } .c8 { grid-column:span 8; } .c12 { grid-column:span 12; }
+  @media (max-width:820px){ .c4,.c5,.c6,.c7,.c8 { grid-column:span 12; } }
+  h2 { font-size:11.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--mute); margin:0 0 14px; font-weight:650; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  h2 .aside { text-transform:none; letter-spacing:0; font-weight:500; font-size:12px; }
+  .sub { color:var(--mute); font-size:13px; }
+
+  .tier { display:flex; align-items:center; gap:16px; }
+  .tier .n { font-size:64px; line-height:1; font-weight:750; letter-spacing:-.04em; }
+  .tier .txt b { display:block; font-size:16px; }
+  .tier .txt span { color:var(--mute); font-size:13px; }
   .t0{color:var(--t0)} .t1{color:var(--t1)} .t2{color:var(--t2)} .t3{color:var(--t3)}
+  .gauge { position:relative; height:12px; border-radius:7px; background:var(--soft); margin:22px 0 8px; overflow:visible; }
+  .gauge i { position:absolute; inset:0 auto 0 0; border-radius:7px; background:linear-gradient(90deg,var(--t0),var(--t1) 35%,var(--t2) 65%,var(--t3)); transition:width .7s cubic-bezier(.2,.8,.2,1); }
+  .gauge u { position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--ink); opacity:.28; border-radius:2px; }
+  .gauge .you { position:absolute; top:-6px; width:4px; height:24px; background:var(--ink); border-radius:3px; transform:translateX(-2px); transition:left .7s cubic-bezier(.2,.8,.2,1); }
+  .ticks { position:relative; height:16px; color:var(--mute); font-size:11px; }
+  .ticks span { position:absolute; transform:translateX(-50%); white-space:nowrap; }
+.ladder .kv.cur { background:var(--soft); border-radius:8px; padding-left:8px; padding-right:8px; font-weight:600; }
+  .ladder .kv b { display:inline-block; width:14px; }
+  .note { margin:14px 0 0; padding:10px 12px; background:var(--soft); border-radius:10px; font-size:13px; color:var(--mute); }
+  .note.warn { background:color-mix(in srgb, var(--warn) 14%, var(--card)); color:var(--ink); }
+  .note.bad { background:color-mix(in srgb, var(--bad) 14%, var(--card)); color:var(--ink); }
+
+  .chain { padding:14px 0; border-top:1px solid var(--line); } .chain:first-of-type { border-top:0; padding-top:0; }
+  .chain .head { display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .chain .head b { font-size:14px; }
+  .big { font-size:26px; font-weight:700; letter-spacing:-.02em; }
+  .track { display:flex; height:16px; border-radius:8px; background:var(--soft); overflow:hidden; margin:10px 0 8px; }
+  .track i { display:block; height:100%; transition:width .7s cubic-bezier(.2,.8,.2,1); }
+  .seg-owed { background:var(--t0); } .seg-avail { background:var(--accent); } .seg-sec { background:repeating-linear-gradient(45deg,var(--t2) 0 5px,color-mix(in srgb,var(--t2) 55%,var(--card)) 5px 10px); }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--mute); }
+  .legend span::before { content:""; display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px; vertical-align:-1px; background:var(--k); }
+  .badge { font-size:11.5px; padding:2px 9px; border-radius:999px; border:1px solid var(--line); color:var(--mute); }
+  .badge.ok { color:var(--ok); border-color:color-mix(in srgb,var(--ok) 40%,var(--line)); } .badge.warn { color:var(--warn); border-color:color-mix(in srgb,var(--warn) 45%,var(--line)); } .badge.bad { color:var(--bad); border-color:color-mix(in srgb,var(--bad) 45%,var(--line)); }
+
+  .inp { display:grid; grid-template-columns:150px 1fr 40px; gap:10px; align-items:center; padding:5px 0; font-size:13px; }
+  .inp .meter { position:relative; height:8px; border-radius:5px; background:var(--soft); }
+  .inp .meter i { position:absolute; inset:0 auto 0 0; border-radius:5px; transition:width .7s cubic-bezier(.2,.8,.2,1); }
+  .inp .meter u { position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--ink); opacity:.35; }
+  .inp .v { color:var(--mute); text-align:right; font-variant-numeric:tabular-nums; }
+  .good { color:var(--ok); } .bad-t { color:var(--bad); }
+  .why p { margin:0 0 10px; } .why .k { font-size:12px; color:var(--mute); display:block; margin-bottom:2px; }
+
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .stat { background:var(--soft); border-radius:10px; padding:10px 12px; }
+  .stat b { display:block; font-size:22px; letter-spacing:-.02em; } .stat span { font-size:12px; color:var(--mute); }
+  .kv { display:flex; justify-content:space-between; gap:8px; padding:7px 0; border-top:1px solid var(--line); font-size:13px; } .kv span:first-child { color:var(--mute); }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); } th { color:var(--mute); font-weight:500; font-size:12px; }
+  tr:last-child td { border-bottom:0; } td.num { font-variant-numeric:tabular-nums; }
+
+  .empty { text-align:center; padding:56px 20px; color:var(--mute); }
+  .empty h3 { margin:0 0 6px; color:var(--ink); font-size:18px; }
+  .skel { background:linear-gradient(90deg,var(--soft),color-mix(in srgb,var(--soft) 40%,var(--card)),var(--soft)); background-size:200% 100%; animation:sh 1.3s infinite; border-radius:14px; height:190px; }
+  @keyframes sh { to { background-position:-200% 0; } }
+  .flash { animation:flash 1.4s ease-out; } @keyframes flash { from { box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 55%,transparent), var(--shadow);} to { box-shadow:var(--shadow);} }
+  .toast { position:fixed; left:50%; bottom:22px; transform:translate(-50%,24px); opacity:0; background:var(--ink); color:var(--bg); padding:10px 16px; border-radius:999px; font-size:13px; box-shadow:var(--shadow); transition:.35s; pointer-events:none; z-index:10; max-width:92vw; text-align:center; }
+  .toast.show { transform:translate(-50%,0); opacity:1; }
+  footer { border-top:1px solid var(--line); padding:22px 0 40px; color:var(--mute); font-size:13px; }
+  footer .links { display:flex; gap:16px; flex-wrap:wrap; margin-bottom:8px; }
+  .status { color:var(--mute); font-size:12px; margin-top:14px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .toggle { display:inline-flex; gap:6px; align-items:center; cursor:pointer; }
+  @media (max-width:640px){ header.top { position:static; } }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
 </style>
 </head>
 <body>
-<main>
-  <h1>Catena credit passport</h1>
-  <p class="sub">A reactive contract on Lasna scores a wallet from its loan events on Base Sepolia and Unichain Sepolia, then sets its borrow quota on both chains. Test networks, fake money.</p>
-  <form id="f"><input id="addr" placeholder="Wallet address 0x…" spellcheck="false" autocomplete="off"><button>Look up</button></form>
-  <div id="out"></div>
-  <p class="status" id="status"></p>
+<header class="top"><div class="wrap bar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M11 12a5 5 0 0 1 5-5h1v3h-1a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4h-1v3h1a5 5 0 0 0 0-10h-4" fill="none" stroke="var(--accent-ink)" stroke-width="2.4" stroke-linecap="round"/></svg>
+    Catena <small>credit passport</small>
+  </div>
+  <div class="pills" id="pills" aria-label="Network status"></div>
+</div></header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>One repayment record. Credit on every chain.</h1>
+    <p class="lead">A small neural network inside a Reactive contract scores a wallet from its loan events on Base Sepolia and Unichain Sepolia, then sets its borrow quota on both chains. Test networks, fake money.</p>
+    <form class="lookup" id="f" role="search">
+      <div class="field"><input id="addr" aria-label="Wallet address" placeholder="Paste a wallet address (0x…)" spellcheck="false" autocomplete="off"></div>
+      <button class="primary">Look up</button>
+    </form>
+    <div class="examples" id="examples"></div>
+    <div class="flow" aria-label="How it works">
+      <div><b>Loan event</b>A pool on Base or Unichain emits Borrowed, Repaid or Defaulted.</div>
+      <div><b>Reactive contract</b>Lasna updates the passport and runs the MLP in integer math.</div>
+      <div><b>Tier and quotas</b>Hard rules apply: defaults zero, one tier up per period.</div>
+      <div><b>Callbacks</b>Each pool gets its new quota, usually within 1 to 3 seconds.</div>
+    </div>
+  </section>
+  <div id="out" aria-live="polite"></div>
+  <div class="status" id="status"></div>
 </main>
+
+<footer><div class="wrap">
+  <div class="links" id="links"></div>
+  <div>Catena is a hackathon prototype on test networks. Scores come from a model trained on synthetic data and are not real credit assessments. Explanations are model sensitivities, not definitive reasons.</div>
+</div></footer>
+<div class="toast" id="toast" role="status"></div>
+
 <script type="module">
   import { ethers } from "https://esm.sh/ethers@6.13.4";
   import { CONFIG } from "./config.js";
-  import { makeReader, TIER_THRESHOLDS, SCORE_MAX, tierFromScore } from "./catena.js";
+  import { makeReader, TIER_THRESHOLDS, SCORE_MAX, tierFromScore, FEATURE_NAMES, FEATURE_SIGN, BASELINE, S } from "./catena.js";
 
   const reader = makeReader(ethers, CONFIG);
   const $ = (id) => document.getElementById(id);
-  const short = (h) => h.slice(0, 8) + "…" + h.slice(-6);
-  let current = null, last = null, timer = null;
+  const short = (h, a = 6, b = 4) => h.slice(0, a + 2) + "…" + h.slice(-b);
+  const fmt = (x) => (Math.round(x * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const TIER_NAME = ["Starter", "Building", "Established", "Trusted"];
+  const tierName = (w) => (w.defaulted ? "Suspended" : TIER_NAME[w.tier]);
+  let current = null, last = null, timer = null, auto = true, busy = false;
 
+  // ---------- static chrome
+  $("links").innerHTML = [
+    ["Reactive contract (Lasna)", CONFIG.chains.lasna.explorer + "address/" + CONFIG.reactive],
+    ["Base Sepolia pool", CONFIG.chains.base.explorer + "address/" + CONFIG.chains.base.pool],
+    ["Unichain Sepolia pool", CONFIG.chains.unichain.explorer + "address/" + CONFIG.chains.unichain.pool],
+    ["Collateral-only pool", CONFIG.chains.unichain.explorer + "address/" + CONFIG.collateralOnlyPool],
+    ["Source code", "https://github.com/samuel025/catena"],
+  ].map(([t, h]) => `<a href="${h}" target="_blank" rel="noopener">${t}</a>`).join("");
+  $("examples").innerHTML = (CONFIG.examples || []).length
+    ? `<span>Try an example:</span>` + CONFIG.examples.map((e) => `<button type="button" class="chip" data-a="${e.address}">${esc(e.label)}</button>`).join("")
+    : "";
+  $("examples").addEventListener("click", (e) => { const a = e.target.closest("[data-a]"); if (a) { $("addr").value = a.dataset.a; load(a.dataset.a); } });
+
+  async function pulse() {
+    try {
+      const h = await reader.heads();
+      $("pills").innerHTML = ["lasna", "base", "unichain"].map((k) => {
+        const x = h[k];
+        return `<span class="pill"><i class="dot ${x ? "up" : "down"}"></i>${CONFIG.chains[k].name}${x ? ` · block ${x.block.toLocaleString()}` : " · unreachable"}</span>`;
+      }).join("");
+    } catch { /* keep the last pills */ }
+  }
+  pulse(); setInterval(pulse, 10000);
+
+  // ---------- lookup
   const q = new URLSearchParams(location.search).get("w");
-  if (q) { $("addr").value = q; load(q); }
+  if (q) { $("addr").value = q; load(q); } else empty();
   $("f").addEventListener("submit", (e) => { e.preventDefault(); load($("addr").value.trim()); });
 
-  function load(a) {
-    if (!ethers.isAddress(a)) { $("out").innerHTML = ""; $("status").textContent = "That is not a valid address."; return; }
-    current = ethers.getAddress(a); last = null; history.replaceState(null, "", "?w=" + current);
-    clearInterval(timer); refresh(); timer = setInterval(refresh, 4000);
+  function empty(msg) {
+    $("out").innerHTML = `<div class="card empty"><h3>${msg || "Look up a wallet"}</h3><div>${msg ? "Check the address and try again." : "Paste an address above to see its tier, per-chain quotas, the model inputs behind the score and every scoring on Lasna."}</div></div>`;
   }
-
+  function load(a) {
+    if (!ethers.isAddress(a)) { clearInterval(timer); empty("That is not a valid address"); $("status").textContent = ""; return; }
+    current = ethers.getAddress(a); last = null; history.replaceState(null, "", "?w=" + current);
+    $("out").innerHTML = `<div class="grid"><div class="skel c5"></div><div class="skel c7"></div><div class="skel c12"></div></div>`;
+    clearInterval(timer); refresh(); timer = setInterval(() => auto && refresh(), 4000);
+  }
   async function refresh() {
+    if (busy || !current) return; busy = true;
     try {
       const [w, hist] = await Promise.all([reader.readWallet(current), reader.recentScores(current)]);
       render(w, hist);
-      $("status").textContent = "Live from the chains, refreshing every 4 seconds. Last read " + new Date().toLocaleTimeString() + ".";
+      $("status").innerHTML = `<span>Live from the chains. Last read ${new Date().toLocaleTimeString()}.</span><label class="toggle"><input type="checkbox" id="auto" ${auto ? "checked" : ""}> Refresh every 4 s</label>`;
+      $("auto").onchange = (e) => { auto = e.target.checked; };
     } catch (e) { $("status").textContent = "Read failed (" + (e.shortMessage || e.message) + "). Retrying."; }
+    busy = false;
+  }
+  function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 3600); }
+
+  // ---------- render
+  function chainRow(name, c, scale) {
+    const owed = Math.min(c.owed, scale), avail = Math.max(0, Math.min(c.quota - c.owed, scale - owed));
+    const sec = Math.max(0, Math.min(c.secured, scale - owed - avail));
+    const pc = (v) => (scale > 0 ? (v / scale) * 100 : 0);
+    const headroom = Math.max(0, c.limit - c.owed);
+    return `<div class="chain">
+      <div class="head"><b>${name}</b><span class="sub">score v${c.version || "–"}${c.flagged ? ` · <span class="badge bad">default flagged here</span>` : ""}</span></div>
+      <div><span class="big">${fmt(c.limit)}</span> <span class="sub">borrow limit · ${fmt(headroom)} available</span></div>
+      <div class="track" role="img" aria-label="${fmt(c.owed)} owed, ${fmt(avail)} available from quota, ${fmt(c.secured)} secured by collateral">
+        <i class="seg-owed" style="width:${pc(owed)}%"></i><i class="seg-avail" style="width:${pc(avail)}%"></i><i class="seg-sec" style="width:${pc(sec)}%"></i></div>
+      <div class="legend"><span style="--k:var(--t0)">Owed ${fmt(c.owed)}</span><span style="--k:var(--accent)">Quota ${fmt(c.quota)}${c.version ? "" : " (starter)"}</span><span style="--k:var(--t2)">Secured by collateral ${fmt(c.secured)}</span></div>
+    </div>`;
   }
 
   function render(w, hist) {
-    const changed = last && (last.version !== w.version || last.base.quota !== w.base.quota || last.unichain.quota !== w.unichain.quota);
+    const changed = last && (last.version !== w.version || last.base.limit !== w.base.limit || last.unichain.limit !== w.unichain.limit || last.base.version !== w.base.version || last.unichain.version !== w.unichain.version);
+    if (changed) {
+      const ups = [];
+      if (last.base.version !== w.base.version) ups.push("Base");
+      if (last.unichain.version !== w.unichain.version) ups.push("Unichain");
+      toast(w.defaulted ? "Default recorded: unsecured credit removed" : `Score v${w.version}: new quota${ups.length ? " on " + ups.join(" and ") : ""}`);
+    }
     last = w;
-    const pct = (v) => (w.totalLimit > 0 ? Math.min(100, (v / w.totalLimit) * 100) : 0);
-    const synced = w.base.version === w.unichain.version;
+    const unscored = w.version === 0, qual = tierFromScore(w.score);
+    const scale = Math.max(w.totalLimit / 2, w.base.limit, w.unichain.limit, w.base.owed, w.unichain.owed, 1);
+    const synced = w.base.version === w.unichain.version && w.base.version === w.version;
     const R = w.reasons;
+    const gaugePct = unscored || w.defaulted ? 0 : (w.score / SCORE_MAX) * 100;
+    const tierNote = w.defaulted
+      ? `<div class="note bad"><b>Defaulted.</b> A hard rule, outside the model, set the tier to 0 and removed the unsecured quota on both chains. The model cannot override it.</div>`
+      : unscored ? `<div class="note">No loan activity scored yet. A small starter quota lets a new wallet take a first loan and build a record.</div>`
+      : qual > w.tier ? `<div class="note warn">The score qualifies for tier ${qual}, but a limit can rise only <b>one tier per period</b>, so it is held at tier ${w.tier} until a later repayment.</div>`
+      : "";
     $("out").innerHTML = `
-    <div class="grid ${changed ? "flash" : ""}">
-      <div class="card">
-        <h2>Credit tier</h2>
-        <div class="tier"><b class="t${w.tier}">${w.tier}</b><span>${w.defaulted ? "defaulted (hard rule)" : w.version === 0 ? "not scored yet, starter quota" : "score " + w.score + " / " + SCORE_MAX}</span></div>
-        <div class="gauge"><i style="width:${w.defaulted || w.version === 0 ? 0 : (w.score / SCORE_MAX) * 100}%"></i>${TIER_THRESHOLDS.map((t) => `<u style="left:${(t / SCORE_MAX) * 100}%"></u>`).join("")}</div>
-        <div class="ticks"><span>0</span><span>tier 1 at ${TIER_THRESHOLDS[0]}</span><span>2 at ${TIER_THRESHOLDS[1]}</span><span>3 at ${TIER_THRESHOLDS[2]}</span></div>
-        ${!w.defaulted && w.version > 0 && tierFromScore(w.score) > w.tier ? `<div class="reason" style="margin-top:12px"><small>The score qualifies for tier ${tierFromScore(w.score)}, but a limit can rise only one tier per period, so it is held at tier ${w.tier} until a later repayment.</small></div>` : ""}
-      </div>
-      <div class="card">
-        <h2>Why</h2>
-        ${R.helped ? `<div class="reason good">Helped most: ${R.helped}</div>` : ""}
-        ${R.hurt ? `<div class="reason bad">Hurt most: ${R.hurt}</div>` : ""}
-        ${!R.helped && !R.hurt ? `<div class="reason">Nothing recorded yet.</div>` : ""}
-        <div class="reason"><small>${R.note}</small></div>
-      </div>
-      <div class="card full">
-        <h2>Borrow quota on each chain <span style="text-transform:none;letter-spacing:0">(total limit at this tier: ${w.totalLimit})</span></h2>
-        <div class="row"><span>Base Sepolia</span><span><strong>${w.base.quota}</strong> quota · ${w.base.owed} owed · score v${w.base.version}</span></div>
-        <div class="bar"><i style="width:${pct(w.base.quota)}%"></i></div>
-        <div class="row" style="margin-top:12px"><span>Unichain Sepolia</span><span><strong>${w.unichain.quota}</strong> quota · ${w.unichain.owed} owed · score v${w.unichain.version}</span></div>
-        <div class="bar"><i style="width:${pct(w.unichain.quota)}%"></i></div>
-        <div class="row" style="margin-top:10px"><span>${synced ? "Both chains are on the same score version." : "A callback is still on its way to one chain."}</span><span>Exposure is bounded by the sum of quotas.</span></div>
-      </div>
-      <div class="card">
+    <div class="grid">
+      <section class="card c5 ${changed ? "flash" : ""}">
+        <h2>Credit tier <span class="aside mono">${short(current, 6, 4)} <a href="#" id="copy" aria-label="Copy address">copy</a></span></h2>
+        <div class="tier"><div class="n t${w.tier}">${w.tier}</div><div class="txt"><b>${tierName(w)}</b><span>${w.defaulted ? "Defaulted (hard rule)" : unscored ? "Not scored yet" : `Model score ${w.score} of ${SCORE_MAX}`}</span></div></div>
+        <div class="gauge"><i style="width:${gaugePct}%"></i>${TIER_THRESHOLDS.map((t) => `<u style="left:${(t / SCORE_MAX) * 100}%"></u>`).join("")}${unscored || w.defaulted ? "" : `<span class="you" style="left:${gaugePct}%"></span>`}</div>
+        <div class="ticks">${TIER_THRESHOLDS.map((t, i) => `<span style="left:${(t / SCORE_MAX) * 100}%">${i + 1} at ${t}</span>`).join("")}</div>
+        ${tierNote}
+        <div class="ladder" style="margin-top:16px">${w.limits.map((l, t) => `<div class="kv ${t === w.tier && !w.defaulted ? "cur" : ""}"><span><b class="t${t}">${t}</b> ${TIER_NAME[t]}</span><span>${t === 0 ? "starter quota, up to " : "up to "}${fmt(l)} in total</span></div>`).join("")}</div>
+      </section>
+      <section class="card c7 ${changed ? "flash" : ""}">
+        <h2>Borrow limit on each chain <span class="aside">total ${w.defaulted ? "unsecured limit: 0" : `at tier ${w.tier}: ${fmt(w.totalLimit)}`}</span></h2>
+        ${chainRow("Base Sepolia", w.base, scale)}
+        ${chainRow("Unichain Sepolia", w.unichain, scale)}
+        <div class="sub" style="margin-top:2px"><span class="badge ${synced ? "ok" : "warn"}">${synced ? "Both chains on the latest score" : "Callback still on its way"}</span> Exposure is bounded by the sum of the quotas installed on each chain, plus the borrower's own collateral.</div>
+      </section>
+      <section class="card c7">
+        <h2>What the model sees <span class="aside">six inputs, 0 to 1</span></h2>
+        ${w.inputs.map((v, i) => {
+          const good = FEATURE_SIGN[i] > 0 ? v >= BASELINE[i] : v <= BASELINE[i];
+          return `<div class="inp"><span>${FEATURE_NAMES[i]}</span><div class="meter"><i style="width:${(v / S) * 100}%;background:${good ? "var(--ok)" : "var(--bad)"}"></i><u style="left:${(BASELINE[i] / S) * 100}%" title="typical borrower"></u></div><span class="v">${(v / S).toFixed(2)}</span></div>`;
+        }).join("")}
+        <div class="sub" style="margin-top:8px">The tick marks a typical borrower. Green is on the helpful side of it for the score, red the other. History length uses the current time.</div>
+      </section>
+      <section class="card c5 why">
+        <h2>Why this tier</h2>
+        ${R.helped ? `<p><span class="k">Helped most</span><span class="good">${esc(R.helped)}</span></p>` : ""}
+        ${R.hurt ? `<p><span class="k">Held back most</span><span class="bad-t">${esc(R.hurt)}</span></p>` : ""}
+        ${!R.helped && !R.hurt ? `<p class="sub">Nothing recorded yet. Reasons are written when a tier changes.</p>` : ""}
+        <p class="sub" style="margin:0">${esc(R.note)}</p>
+      </section>
+      <section class="card c5">
         <h2>Passport</h2>
-        <div class="row"><span>On-time repayments</span><strong>${w.onTime}</strong></div>
-        <div class="row"><span>Late repayments</span><strong>${w.late}</strong></div>
-        <div class="row"><span>Current on-time streak</span><strong>${w.streak}</strong></div>
-        <div class="row"><span>Passport address</span><a href="${CONFIG.chains.lasna.explorer}address/${CONFIG.reactive}" target="_blank" rel="noopener"><code>${short(CONFIG.reactive)}</code></a></div>
-      </div>
-      <div class="card">
-        <h2>Recent scorings (Lasna)</h2>
-        ${hist.length ? `<table><tr><th>v</th><th>score</th><th>tier</th><th>tx</th></tr>${hist.map((h) => `<tr><td>${h.version}</td><td>${h.score}</td><td>${h.tier}</td><td><a href="${CONFIG.chains.lasna.explorer}tx/${h.tx}" target="_blank" rel="noopener"><code>${short(h.tx)}</code></a></td></tr>`).join("")}</table>` : `<div class="reason">No scorings yet.</div>`}
-      </div>
+        <div class="stats">
+          <div class="stat"><b>${w.onTime}</b><span>On time</span></div>
+          <div class="stat"><b>${w.late}</b><span>Late</span></div>
+          <div class="stat"><b>${w.streak}</b><span>Streak</span></div>
+        </div>
+        <div class="kv" style="margin-top:12px"><span>First seen</span><span>${w.firstSeen ? new Date(w.firstSeen * 1000).toLocaleString() : "never"}</span></div>
+        <div class="kv"><span>Passport contract</span><a href="${CONFIG.chains.lasna.explorer}address/${CONFIG.reactive}" target="_blank" rel="noopener" class="mono">${short(CONFIG.reactive)}</a></div>
+      </section>
+      <section class="card c7">
+        <h2>Scorings on Lasna <span class="aside">latest first</span></h2>
+        ${hist.length ? `<table><tr><th>Version</th><th>Score</th><th>Tier</th><th>Reactive transaction</th></tr>${hist.map((h) => `<tr><td class="num">v${h.version}</td><td class="num">${h.score}</td><td class="num t${h.tier}"><b>${h.tier}</b></td><td><a class="mono" href="${CONFIG.chains.lasna.explorer}tx/${h.tx}" target="_blank" rel="noopener">${short(h.tx, 8, 6)}</a></td></tr>`).join("")}</table>` : `<div class="sub">No scorings yet. The first repayment will create one.</div>`}
+      </section>
     </div>`;
+    const cp = $("copy"); if (cp) cp.onclick = (e) => { e.preventDefault(); navigator.clipboard?.writeText(current).then(() => toast("Address copied")); };
   }
 </script>
 </body>

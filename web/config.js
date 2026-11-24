@@ -7,4 +7,9 @@ export const CONFIG = {
     unichain: { name: "Unichain Sepolia", rpc: "https://sepolia.unichain.org",     explorer: "https://sepolia.uniscan.xyz/",   pool: "0xc66ca4091E0f07E01a10E2200ffFa7F16FeDBB31" },
   },
   collateralOnlyPool: "0x8261f88E31faD3d6f0695AE2188995152e98D38a",
+  examples: [
+    { label: "Ada, repays on time", address: "0xF128BF27A910b506DaA09556492c8FdF8808E920" },
+    { label: "Thin file", address: "0xF9ffA153Daa76c36d72B169a33A4cc03FC7d3Ab0" },
+    { label: "Defaulter", address: "0xb9Ad4291a862D5452575ECce98f67949eCcD9f0b" },
+  ],
 };
