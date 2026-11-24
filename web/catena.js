@@ -81,6 +81,7 @@ export function makeReader(ethers, cfg) {
     const limit = await reactive.tierLimit(p.tier);
     const unit = 10n ** 18n;
     const n = (x) => Number(x / (unit / 100n)) / 100; // whole units with 2 decimals
+    const n6 = (x) => Number(x / (unit / 1000000n)) / 1000000; // collateral is real testnet ETH, so keep 6 decimals
     return {
       tier: Number(p.tier), score: Number(p.score), version: Number(p.version), defaulted: p.defaulted,
       onTime: Number(p.onTime), late: Number(p.late), streak: Number(p.streak),
@@ -88,8 +89,8 @@ export function makeReader(ethers, cfg) {
       limits: await tierLimits(),
       firstSeen: Number(p.firstSeen),
       inputs: features({ onTime: Number(p.onTime), late: Number(p.late), streak: Number(p.streak), recentLate: Number(p.recentLate), recentCount: Number(p.recentCount), firstSeen: Number(p.firstSeen), debt: p.debt }, limit, Math.floor(Date.now() / 1000)),
-      base: { quota: n(qb), version: Number(vb), owed: n(ob), secured: n(cb / 2n), collateral: n(cb), limit: n(lb), flagged: fb },
-      unichain: { quota: n(qu), version: Number(vu), owed: n(ou), secured: n(cu / 2n), collateral: n(cu), limit: n(lu), flagged: fu },
+      base: { quota: n(qb), version: Number(vb), owed: n(ob), secured: n6(cb / 2n), collateral: n6(cb), limit: n6(lb), flagged: fb },
+      unichain: { quota: n(qu), version: Number(vu), owed: n(ou), secured: n6(cu / 2n), collateral: n6(cu), limit: n6(lu), flagged: fu },
       reasons: explain({ set: r.set, helped: Number(r.helped), hurt: Number(r.hurt), helpedDelta: Number(r.helpedDelta), hurtDelta: Number(r.hurtDelta) }),
     };
   }

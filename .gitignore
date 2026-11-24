@@ -6,3 +6,5 @@ broadcast/
 .demo-wallets.env
 lib/forge-std/
 __pycache__/
+video/out/
+video/work/

@@ -1,0 +1,29 @@
+[[S1]]
+Crypto lending usually asks you to lock up more than you borrow, and your repayment record on one chain means nothing on the next. Catena is a credit passport. A small neural network, running inside a reactive contract on Lasna, watches loans on Base and Unichain, and sets how much you can borrow on both.
+
+[[S2]]
+Here's a brand new wallet with no history. The collateral-only pool rejects a twenty unit borrow. So does the Catena pool, because a wallet with no record only gets a small starter quota.
+
+[[S3]]
+Now it borrows and repays on time on Base. Watch Unichain, a chain that has never seen this wallet. Within a couple of seconds the reactive contract updates the passport, runs the model inside the transaction, and pushes a new quota to both pools. Ten, then twenty-five, climbing one tier at a time.
+
+[[S4]]
+The dashboard reads it straight from the chains: the tier, the six inputs the model saw, and the same quota on both.
+
+[[S5]]
+Same wallet, and the same twenty unit borrow the collateral-only pool refused. On the Catena pool it goes through, with no collateral, because of its Base history.
+
+[[S6]]
+And it isn't all or nothing. Post the same collateral in both pools, and the collateral-only pool allows half of it, while Catena adds the quota earned from history. The collateral is accounting only, so this shows permissioning, not real secured lending.
+
+[[S7]]
+Now a borrower who doesn't repay. A default is a hard rule outside the model, so both quotas drop to zero, and the recorded reason says default. The pool that saw it blocks borrowing at once, and the other chain follows when the callback lands, one to three seconds later. We don't claim that's instant.
+
+[[S8]]
+Two chains can't enforce one shared limit through async callbacks, so each gets a fixed quota. We draw the full quota on both at once, then try for more. Every extra draw reverts, and total exposure stops at fifty, the limit.
+
+[[S9]]
+Under the hood, a repayment costs about one hundred ninety thousand gas including both callbacks, well under the nine hundred thousand cap. Python and Solidity match bit for bit across eight hundred forty-two events. And the honest result: on synthetic data the network scores sixty-six point seven percent against sixty-five point nine for a plain formula, so we claim a working on-chain model, not an accuracy win.
+
+[[S10]]
+It's all open source, with addresses and transaction hashes in the submission. This is Catena, a credit passport that follows you across chains.
