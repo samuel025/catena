@@ -1,9 +1,52 @@
 # Catena
 
-A cross-chain credit passport for the Reactive Omni Buildathon (Reactive Meets AI track).
-A reactive contract on Reactive Lasna watches loan events on Base Sepolia and Unichain Sepolia, scores each
-borrower with a small neural network that runs **inside** `react()`, and sets per-chain borrow quotas by callback.
-Test networks, fake money. Not production credit scoring.
+**A credit history that follows you across blockchains.** Built for the Reactive Omni Buildathon (Reactive Meets AI track).
+Test networks, fake money, not production credit scoring.
+
+![The Catena dashboard](docs/img/dashboard-hero.png)
+
+## In plain English
+**The problem.** Crypto lending usually asks you to lock up more than you borrow. And even if you have repaid every loan on
+time on one blockchain, a lender on another blockchain knows nothing about you.
+
+**What Catena does.** It keeps one repayment record per wallet across blockchains, scores it with a small neural network, and
+uses the score to decide how much that wallet may borrow on *each* chain. Repay on time on one chain and your borrowing limit
+rises on both within a couple of seconds. Miss a payment and the limit drops to zero on both. Because it runs on **Reactive
+Network**, which lets one smart program watch events on one blockchain and act on another, there is no off-chain server
+deciding anything: the model itself runs inside the on-chain transaction.
+
+**A walk-through.**
+1. A brand new wallet asks for 20 units. A normal pool that wants collateral says no. Our pool also says no, but only because
+   the wallet is new: it gets a small starter amount (2).
+2. The wallet borrows a little and repays on time on the first chain. The second chain has never seen this wallet.
+3. Within seconds the limit on **both** chains rises, first to 10 and then to 25 (one level at a time, by design).
+4. The same 20-unit borrow that was refused now goes through, with no collateral, because of the repayment history.
+5. Collateral still helps: with the same collateral in both pools, good history allows far more borrowing.
+6. If the wallet defaults, its limit drops to zero on both chains. That rule sits outside the model, so the model cannot
+   override it. The chain that saw the default reacts at once, the other follows in about 1 to 3 seconds (we do not claim it is instant).
+7. Even if someone tries to borrow the maximum on both chains at the same moment, total borrowing stays within the limit.
+
+**What we claim, and what we do not.** It works end to end on testnets, it is transparent and reproducible, and the score is
+computed on-chain. The model learned from made-up data and is only about as accurate as a simple formula (66.7% against
+65.9%), so we do not claim it is smarter, only that it is auditable and runs entirely on-chain.
+
+A 2:14 demo video, assembled from a real run, is built with the scripts in `video/`.
+
+## Screenshots
+Real pages read live from the chains (the dashboard is `web/index.html`).
+
+**One wallet's passport: trust level, borrowing limit on each chain, and how the score becomes borrowing power.**
+![Passport of a wallet with a good repayment record](docs/img/dashboard-passport.png)
+
+**What the model looked at, and the main reasons for the result.**
+![The six model inputs and the reasons](docs/img/dashboard-model-inputs.png)
+
+**After a default: a hard rule removes the unsecured limit on both chains, and no borrowing is allowed until the defaulted loan is repaid.**
+![Passport of a wallet that defaulted](docs/img/dashboard-default.png)
+
+**From the demo video: the same borrow is refused by a normal pool and approved by the Catena pool, and the limit follows the user to the second chain.**
+![A refused and an approved borrow](docs/img/video-refused-approved.png)
+![The borrowing limit rising on both chains](docs/img/video-limits-follow-you.png)
 
 ## How it works
 1. Pools on each chain emit `Borrowed`, `Repaid(late?)` and `Defaulted` events.
@@ -68,6 +111,8 @@ enough (about 37k gas per forward pass) to run on every event.
 | `web/` | static page, no backend: look up any wallet and see its tier, the six inputs the model saw, the borrow limit on each chain (owed, quota, secured by collateral), reasons and scorings, read live from the RPCs every 4 s, with live network status. `script/gen_web_config.sh`, then `cd web && python3 -m http.server`, open `?w=<address>` |
 | `docs/DEMO_SCRIPT.md` | shot-by-shot script for the under-3-minute video, with the pre-filming checklist |
 | `docs/REPRODUCING_DEPLOYMENTS.md` | toolchain, constructor arguments, code hashes, how to account for immutables, and what was tried for verification |
+| `docs/img/` | screenshots used in this README |
+| `video/` | scripts that build the demo video from a real run (capture, narration, render) |
 | `docs/SUBMISSION.md` | addresses, a full-loop transaction table, what to look at, honest limits |
 | `LICENSE` | MIT |
 
