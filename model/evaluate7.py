@@ -38,7 +38,7 @@ def main():
     s_dep = [T.int_forward(D["X"], (np.array(w0["W1"]), np.array(w0["b1"]), np.array(w0["W2"]), w0["b2"]))]
     s6 = [T.int_forward(D["X"], G.train_n(D["X"][tr], D["y"][tr], D["X"][va], D["y"][va], sign6, sd)) for sd in G.SEEDS]
     s8 = [T.int_forward(X8, G.train_n(X8[tr], D["y"][tr], X8[va], D["y"][va], sign8, sd)) for sd in G.SEEDS]
-    md = ["# Evaluation 7: matched approval rates", "",
+    md = ["# Evaluation 7: approval-rate targets chosen on validation, compared on test", "",
           "Evaluation only (`model/evaluate7.py`, seeded). Synthetic data. Each model is approved at the same share of loans (tier 2 or above under the contract rules); "
           "cut-offs were set on validation, test evaluated once. Mean of 3 seeds for the two retrained models.", "",
           "| target approval | model | actual test approval | overall risky approved | false rejection | precision | recall | loss per loan | recovering low-risk approved | deteriorating risky approved | strategic risky approved |",

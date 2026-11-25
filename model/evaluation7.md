@@ -1,4 +1,4 @@
-# Evaluation 7: matched approval rates
+# Evaluation 7: approval-rate targets chosen on validation, compared on test
 
 Evaluation only (`model/evaluate7.py`, seeded). Synthetic data. Each model is approved at the same share of loans (tier 2 or above under the contract rules); cut-offs were set on validation, test evaluated once. Mean of 3 seeds for the two retrained models.
 
