@@ -3,6 +3,8 @@
 **A credit history that follows you across blockchains.** Built for the Reactive Omni Buildathon (Reactive Meets AI track).
 Test networks, fake money, not production credit scoring.
 
+**Live dashboard: [catena-reactive.vercel.app](https://catena-reactive.vercel.app/)** (look up any wallet, read live from the chains)
+
 ![The Catena dashboard](docs/img/dashboard-hero.png)
 
 ## In plain English
@@ -14,6 +16,11 @@ uses the score to decide how much that wallet may borrow on *each* chain. Repay 
 rises on both within a couple of seconds. Miss a payment and the limit drops to zero on both. Because it runs on **Reactive
 Network**, which lets one smart program watch events on one blockchain and act on another, there is no off-chain server
 deciding anything: the model itself runs inside the on-chain transaction.
+
+**Why speed matters here.** The risk a cross-chain credit record must stop is a race: default on one chain, then borrow on
+another before it hears about it. On Reactive's fast blocks that window is short: measured on testnet, a repayment on Base changes the
+limit on Base about 1 s later and on Unichain about 2 s later (block timestamps, 1 s resolution; see *Measured*). A default
+travels the same callback path. Anything borrowed inside that window is capped by the limit the other chain already had.
 
 **A walk-through.**
 1. A brand new wallet asks for 20 units. A normal pool that wants collateral says no. Our pool also says no, but only because
@@ -33,7 +40,8 @@ computed on-chain. The model learned from made-up data and is only about as accu
 A 2:14 demo video, assembled from a real run, is built with the scripts in `video/`.
 
 ## Screenshots
-Real pages read live from the chains (the dashboard is `web/index.html`).
+Real pages read live from the chains (the dashboard is `web/index.html`, live at
+[catena-reactive.vercel.app](https://catena-reactive.vercel.app/)).
 
 **One wallet's passport: trust level, borrowing limit on each chain, and how the score becomes borrowing power.**
 ![Passport of a wallet with a good repayment record](docs/img/dashboard-passport.png)
@@ -110,7 +118,7 @@ enough (about 37k gas per forward pass) to run on every event.
 | `model/evaluation.md` | extra checks: risky-borrower approvals, leave-one-population-out, transparent scorecard baseline (`model/evaluate.py`) |
 | `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow, exhausted callback funds (`Funds.t.sol`), delayed revocation |
 | `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `latency.sh`, `trace_loop.sh` (one full loop with every tx hash), `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
-| `web/` | static page, no backend: look up any wallet and see its tier, the six inputs the model saw, the borrow limit on each chain (owed, quota, secured by collateral), reasons and scorings, read live from the RPCs every 4 s, with live network status. `script/gen_web_config.sh`, then `cd web && python3 -m http.server`, open `?w=<address>` |
+| `web/` | static page, no backend: look up any wallet and see its tier, the six inputs the model saw, the borrow limit on each chain (owed, quota, secured by collateral), reasons and scorings, read live from the RPCs every 4 s, with live network status. Hosted at https://catena-reactive.vercel.app/ (`vercel.json`). Locally: `script/gen_web_config.sh`, then `cd web && python3 -m http.server`, open `?w=<address>` |
 | `docs/DEMO_SCRIPT.md` | shot-by-shot script for the under-3-minute video, with the pre-filming checklist |
 | `docs/REPRODUCING_DEPLOYMENTS.md` | toolchain, constructor arguments, code hashes, how to account for immutables, and what was tried for verification |
 | `docs/img/` | screenshots used in this README |
