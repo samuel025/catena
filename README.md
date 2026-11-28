@@ -73,6 +73,14 @@ What the security design guarantees, and what it does not:
 | A default flagged on a pool removes that pool's unsecured limit immediately, and blocks all borrowing there while the defaulted loan is still owed | Yes (`defaultFlagged`, no callback needed) |
 | A default on one chain blocks borrowing on the other chain immediately | **No.** The other pool keeps its old quota until the zero-quota callback arrives, a window of about 1 to 3 seconds measured on testnet. Exposure in that window is bounded by the old quota minus debt (`test_defaultBlocksLocallyAtOnceAndRemotelyAfterCallback`) |
 
+**Stateful invariant tests and a mutation check.** `test/Invariant.t.sol` drives three wallets across both pools and the
+reactive contract in random order: borrows, repayments, collateral, defaults, time jumps, and callbacks delivered late, out
+of order, twice or never. Across every sequence it checks that no borrow exceeds the limit, a default is permanent and sends
+quota zero, the tier climbs at most one step per period, an on-time repayment with no new borrowing never lowers the score,
+duplicate events change nothing, and each pool keeps the newest callback. `script/mutation_check.sh` then breaks one safety
+rule at a time in a throwaway copy (nine rules, from the stale-version check to the default rule) and confirms the tests
+fail. The invariant suite alone catches all nine.
+
 Quotas bound concurrent borrowing against the allocations installed at that moment. They do not make cross-chain
 revocation instantaneous. Removing the window would need a short-lived authorization the pool checks before each draw,
 which this prototype leaves out.
@@ -99,6 +107,7 @@ enough (about 37k gas per forward pass) to run on every event.
 |---|---|---|
 | The reactive contract runs out of lREACT | The network silently stops delivering its events, so scores and quotas stop updating and the last installed quotas stay in force. This happened during testing. Anyone can restore it with `depositTo`, and `script/check_funds.sh` (also a guard in every demo script) catches it first. | `Funds.t.sol` (`coverDebt` needs funds, then clears) |
 | A pool cannot pay for its callbacks | A callback that cannot be paid does not arrive, so the old quota stays. Cuts are the risky case, so a default flagged on the pool itself blocks borrowing without any callback. Anyone can fund the pool and call `coverDebt()`. | `Funds.t.sol` (empty pool still blocks a defaulter; funded pool revives) |
+| A pool cannot pay for its callbacks **and** the borrower defaults on another chain | Not covered. The unfunded pool never receives the zero quota, so it keeps the old limit until someone funds it and the cut is delivered. `script/check_funds.sh` warns about low balances; the fix (halt unsecured lending while a pool owes callback debt, plus a resync call) is future work. | none yet |
 | A callback arrives late | The pool keeps its old quota until it lands (1 to 3 s measured). Exposure in that window is bounded by the old quota minus debt. | `test_defaultBlocksLocallyAtOnceAndRemotelyAfterCallback` |
 | An older callback arrives after a newer one | Ignored: the pool only accepts a higher score version. | `test_poolIgnoresStaleVersion` |
 | The same event is processed twice | Ignored: events are deduplicated by chain, transaction hash and log index. | `test_duplicateEventIgnored` |
@@ -116,8 +125,8 @@ enough (about 37k gas per forward pass) to run on every event.
 | `model/evaluation3.md` to `evaluation7.md` | where the model fails, a thin-file cap test, pre-redeploy checks, and a recent-window feature experiment (`model/evaluate3.py` to `evaluate7.py`; all Python only, synthetic data) |
 | `model/evaluation2.md` | harder test: changing borrower types, real default process, temporal split, thin files (`model/evaluate2.py`) |
 | `model/evaluation.md` | extra checks: risky-borrower approvals, leave-one-population-out, transparent scorecard baseline (`model/evaluate.py`) |
-| `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow, exhausted callback funds (`Funds.t.sol`), delayed revocation |
-| `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `latency.sh`, `trace_loop.sh` (one full loop with every tx hash), `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
+| `test/` | contract tests, Python-vs-Solidity parity (vectors and 842-event histories), monotone fuzz, overflow, exhausted callback funds (`Funds.t.sol`), delayed revocation, stateful invariants (`Invariant.t.sol`) |
+| `script/` | `deploy.sh`, `demo.sh`, `demo_wallets.sh`, `demo_capital.sh`, `security_test.sh`, `mutation_check.sh`, `latency.sh`, `trace_loop.sh` (one full loop with every tx hash), `check_funds.sh`, `new_actor.sh`, `gen_web_config.sh` |
 | `web/` | static page, no backend: look up any wallet and see its tier, the six inputs the model saw, the borrow limit on each chain (owed, quota, secured by collateral), reasons and scorings, read live from the RPCs every 4 s, with live network status. Hosted at https://catena-reactive.vercel.app/ (`vercel.json`). Locally: `script/gen_web_config.sh`, then `cd web && python3 -m http.server`, open `?w=<address>` |
 | `docs/DEMO_SCRIPT.md` | shot-by-shot script for the under-3-minute video, with the pre-filming checklist |
 | `docs/REPRODUCING_DEPLOYMENTS.md` | toolchain, constructor arguments, code hashes, how to account for immutables, and what was tried for verification |
@@ -129,7 +138,8 @@ enough (about 37k gas per forward pass) to run on every event.
 ## Run
 ```
 forge install foundry-rs/forge-std   # test library (reactive-lib-omni is a submodule: git submodule update --init)
-forge test                        # 28 tests
+forge test                        # 33 tests, including stateful invariants
+script/mutation_check.sh          # break nine safety rules one at a time; the tests must catch each
 python3 -m venv .venv && .venv/bin/pip install numpy
 .venv/bin/python model/train.py && .venv/bin/python model/replay.py   # regenerate model + test vectors
 cp .env.example .env              # PRIVATE_KEY (throwaway testnet key), RPCs
